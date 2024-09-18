@@ -124,10 +124,10 @@ def face_detection():
     return send_file(img_io, mimetype='image/png')
 
 # API for face blurring
-@app.route('/api/face-blur', methods=['POST'])
-def face_blur():
+@app.route('/api/face-effect', methods=['POST'])
+def face_effect():
     file = request.files['image']
-    blur_value = int(request.form.get('blur_value', 15))  # Get blur value from form data, default to 15 if not provided
+    effect_value = float(request.form.get('effect_value', 50))  # Get effect value from form data, default to 50
 
     img = Image.open(file.stream).convert('RGB')
     img_np = np.array(img)
@@ -136,11 +136,11 @@ def face_blur():
     # Perform face detection
     faces = detect_faces(img_cv)
 
-    # Perform face blurring
-    blurred_img = blur_faces(img_cv, faces, blur_value)
+    # Apply the blur effect
+    processed_img = blur_faces(img_cv, faces, effect_value)
 
     # Convert image back to PIL for sending as response
-    img_pil = Image.fromarray(cv2.cvtColor(blurred_img, cv2.COLOR_BGR2RGB))
+    img_pil = Image.fromarray(cv2.cvtColor(processed_img, cv2.COLOR_BGR2RGB))
     img_io = BytesIO()
     img_pil.save(img_io, 'PNG')
     img_io.seek(0)

@@ -1,498 +1,539 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Image Processing Dashboard</title>
-        <style>
-            * {
-                margin: 0;
-                padding: 0;
-                box-sizing: border-box;
-            }
-            html, body {
-                height: 100%;
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                background-color: #f0f4f8;
-                color: #333;
-            }
-            .container {
-                display: flex;
-                height: 100%;
-            }
-            .navbar {
-                width: 250px;
-                background-color: #2c3e50;
-                color: white;
-                padding: 20px;
-                height: 100vh;
-            }
-            .navbar ul {
-                list-style-type: none;
-                padding: 0;
-            }
-            .navbar ul li {
-                margin-bottom: 10px;
-            }
-            .navbar ul li a {
-                color: white;
-                text-decoration: none;
-                font-size: 18px;
-                display: block;
-                padding: 10px;
-                border-radius: 5px;
-                transition: background-color 0.3s;
-            }
-            .navbar ul li a:hover, .navbar ul li a.active {
-                background-color: #34495e;
-            }
-            .content {
-                flex-grow: 1;
-                padding: 20px;
-                overflow-y: auto;
-            }
-            .page {
-                display: none;
-            }
-            .page.active {
-                display: block;
-            }
-            .header {
-                padding: 20px;
-                background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
-                color: white;
-                text-align: center;
-                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-                margin-bottom: 20px;
-            }
-            .title {
-                font-size: 28px;
-                font-weight: bold;
-                letter-spacing: 1px;
-            }
-            .main {
-                background-color: #e6f3f7;
-                border-radius: 10px;
-                padding: 20px;
-            }
-            .upload-area {
-                background-color: white;
-                border-radius: 10px;
-                padding: 30px;
-                text-align: center;
-                margin-bottom: 30px;
-                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            }
-            .upload-btn {
-                display: inline-block;
-                padding: 12px 24px;
-                background-color: #3498db;
-                color: white;
-                border-radius: 5px;
-                cursor: pointer;
-                transition: background-color 0.3s ease;
-                border: none;
-                font-size: 16px;
-            }
-            .upload-btn:hover {
-                background-color: #2980b9;
-            }
-            .image-container {
-                display: flex;
-                flex-wrap: wrap;
-                gap: 20px;
-                justify-content: space-between;
-            }
-            .image-box {
-                flex: 1 1 calc(50% - 10px);
-                min-width: 300px;
-                background-color: white;
-                border-radius: 10px;
-                overflow: hidden;
-                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-                margin-bottom: 20px;
-            }
-            .image-box h3 {
-                padding: 15px;
-                background-color: #3498db;
-                color: white;
-                font-size: 18px;
-                text-align: center;
-            }
-            .image-content img {
-                width: 100%;
-                height: auto;
-                object-fit: contain;
-            }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <nav class="navbar">
-                <ul>
-                    <li><a href="#" class="nav-link active"
-                            data-page="histogram">Histogram Analyzer</a></li>
-                    <li><a href="#" class="nav-link"
-                            data-page="face-detection">Face Detection</a></li>
-                    <li><a href="#" class="nav-link"
-                            data-page="face-blurring">Face Blur</a></li>
-                    <li><a href="#" class="nav-link"
-                            data-page="edge-detection">Edge Detection</a></li>
-                </ul>
-            </nav>
-            <div class="content">
-                <!-- Histogram Analyzer Page -->
-                <div id="histogram" class="page active">
-                    <div class="header">
-                        <div class="title">Histogram Analyzer</div>
-                    </div>
-                    <div class="main">
-                        <div class="upload-area">
-                            <p>Upload your image for histogram analysis</p>
-                            <div class="controls">
-                                <label for="imageUpload"
-                                    class="upload-btn">Choose Image</label>
-                                <input type="file" id="imageUpload"
-                                    accept="image/*">
-                                <select id="filterMode" class="upload-btn">
-                                    <option value="RGB">RGB</option>
-                                    <option value="GrayScale">GrayScale</option>
-                                </select>
-                                <button id="uploadHistogramButton"
-                                    class="upload-btn">Upload</button>
-                            </div>
-                        </div>
-                        <div class="image-container">
-                            <div class="image-box">
-                                <h3>Original Image</h3>
-                                <div id="originalHistogram"
-                                    class="image-content"></div>
-                            </div>
-                            <div class="image-box">
-                                <h3>Original Histogram</h3>
-                                <div id="histogramOriginal"
-                                    class="image-content"></div>
-                            </div>
-                            <div class="image-box">
-                                <h3>Equalized Image</h3>
-                                <div id="equalizedHistogram"
-                                    class="image-content"></div>
-                            </div>
-                            <div class="image-box">
-                                <h3>Equalized Histogram</h3>
-                                <div id="histogramEqualized"
-                                    class="image-content"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <!-- Face Detection Page -->
-                <div id="face-detection" class="page">
-                    <div class="header">
-                        <div class="title">Face Detection</div>
-                    </div>
-                    <div class="main">
-                        <div class="upload-area">
-                            <p>Upload your image for face detection</p>
-                            <div class="controls">
-                                <label for="faceDetectionUpload"
-                                    class="upload-btn">Choose Image</label>
-                                <input type="file" id="faceDetectionUpload"
-                                    accept="image/*">
-                                <button id="uploadFaceDetectionButton"
-                                    class="upload-btn">Upload</button>
-                            </div>
-                        </div>
-                        <div class="image-container">
-                            <div class="image-box">
-                                <h3>Original Image</h3>
-                                <div id="originalFaceDetection"
-                                    class="image-content"></div>
-                            </div>
-                            <div class="image-box">
-                                <h3>Face Detected Image</h3>
-                                <div id="faceDetectedImage"
-                                    class="image-content"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
-                <!-- Face Blurring Page -->
-                <div id="face-blurring" class="page">
-                    <div class="header">
-                        <div class="title">Face Blur</div>
-                    </div>
-                    <div class="main">
-                        <div class="instructions">
-                            <h3>INSTRUCTION</h3>
-                            <ol>
-                                <li>You have to choose your image first.</li>
-                                <li>Set your blur value from 30 to 50, and then
-                                    press the upload button.</li>
-                                <li>The number you choose will determine the
-                                    level of blurriness on your face; the higher
-                                    the value, the blurrier it will be.</li>
-                                <li>If the level of blurriness is not suitable
-                                    for your liking, you need to reupload your
-                                    photo, select another value, and then press
-                                    the upload button.</li>
-                            </ol>
-                        </div>
-                        <div class="upload-area">
-                            <p>Upload your image for face blurring</p>
-                            <div class="controls">
-                                <label for="faceBlurUpload"
-                                    class="upload-btn">Choose Image</label>
-                                <input type="file" id="faceBlurUpload"
-                                    accept="image/*">
-                                <div>
-                                    <label for="blurValue">Blur Value:</label>
-                                    <input type="range" id="blurValue" min="30"
-                                        max="50" value="40">
-                                    <span id="blurValueDisplay">40</span>
-                                </div>
-                                <button id="uploadBlurButton"
-                                    class="upload-btn">Upload</button>
-                            </div>
-                        </div>
-                        <div class="image-container">
-                            <div class="image-box">
-                                <h3>Original Image</h3>
-                                <div id="originalBlur"
-                                    class="image-content"></div>
-                            </div>
-                            <div class="image-box">
-                                <h3>Blurred Image</h3>
-                                <div id="blurredImage"
-                                    class="image-content"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <!-- Edge Detection Page -->
-                <div id="edge-detection" class="page">
-                    <div class="header">
-                        <div class="title">Edge Detection</div>
-                    </div>
-                    <div class="main">
-                        <div class="upload-area">
-                            <p>Upload your image for edge detection</p>
-                            <div class="controls">
-                                <label for="edgeDetectionUpload"
-                                    class="upload-btn">Choose Image</label>
-                                <input type="file" id="edgeDetectionUpload"
-                                    accept="image/*">
-                                <select id="edgeMethod" class="upload-btn">
-                                    <option value="canny">Canny</option>
-                                    <option value="sobel">Sobel</option>
-                                    <option value="prewitt">Prewitt</option>
-                                    <option value="laplacian">Laplacian</option>
-                                </select>
-                                <button id="uploadEdgeButton"
-                                    class="upload-btn">Upload</button>
-                            </div>
-                        </div>
-                        <div class="image-container">
-                            <div class="image-box">
-                                <h3>Original Image</h3>
-                                <div id="originalEdge"
-                                    class="image-content"></div>
-                            </div>
-                            <div class="image-box">
-                                <h3>Edge Detected Image</h3>
-                                <div id="edgeDetectedImage"
-                                    class="image-content"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Processing Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f4f8;
+            color: #333;
+        }
+
+        .container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .navbar {
+            width: 250px;
+            background-color: #2c3e50;
+            color: white;
+            padding: 20px;
+        }
+
+        .navbar ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        .navbar ul li {
+            margin-bottom: 10px;
+        }
+
+        .navbar ul li a {
+            color: white;
+            text-decoration: none;
+            font-size: 18px;
+            display: block;
+            padding: 10px;
+            border-radius: 5px;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .navbar ul li a:hover,
+        .navbar ul li a.active {
+            background-color: #34495e;
+            color: #3498db;
+        }
+
+        .content {
+            flex-grow: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .page {
+            display: none;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        .header {
+            padding: 30px;
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+            color: white;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+            border-radius: 10px;
+        }
+
+        .title {
+            font-size: 32px;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        .main {
+            background-color: #ffffff;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .upload-area {
+            background-color: #e6f3f7;
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .upload-btn,
+        .action-btn {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #3498db;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            border: none;
+            font-size: 16px;
+            margin: 10px;
+        }
+
+        .upload-btn:hover,
+        .action-btn:hover {
+            background-color: #2980b9;
+        }
+
+        .image-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 30px;
+            justify-content: space-between;
+        }
+
+        .image-box {
+            flex: 1 1 calc(50% - 15px);
+            min-width: 300px;
+            background-color: #f9f9f9;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+            transition: transform 0.3s ease;
+        }
+
+        .image-box:hover {
+            transform: translateY(-5px);
+        }
+
+        .image-box h3 {
+            padding: 15px;
+            background-color: #3498db;
+            color: white;
+            font-size: 18px;
+            text-align: center;
+        }
+
+        .image-content {
+            padding: 20px;
+        }
+
+        .image-content img {
+            width: 100%;
+            height: auto;
+            object-fit: contain;
+            border-radius: 5px;
+        }
+
+        .instructions {
+            background-color: #e6f3f7;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .instructions h3 {
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+
+        .instructions ol {
+            padding-left: 20px;
+        }
+
+        .instructions li {
+            margin-bottom: 10px;
+        }
+
+        select,
+        input[type="range"] {
+            padding: 10px;
+            margin: 10px;
+            border-radius: 5px;
+            border: 1px solid #3498db;
+        }
+
+        .blur-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .blur-control input[type="range"] {
+            flex-grow: 1;
+        }
+
+        .blur-value {
+            min-width: 30px;
+            text-align: right;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <nav class="navbar">
+            <ul>
+                <li><a href="#" class="nav-link active" data-page="histogram">Histogram Analyzer</a></li>
+                <li><a href="#" class="nav-link" data-page="face-detection">Face Detection</a></li>
+                <li><a href="#" class="nav-link" data-page="face-blurring">Face Blur</a></li>
+                <li><a href="#" class="nav-link" data-page="edge-detection">Edge Detection</a></li>
+            </ul>
+        </nav>
+        <div class="content">
+            <!-- Histogram Analyzer Page -->
+            <div id="histogram" class="page active">
+                <div class="header">
+                    <div class="title">Histogram Analyzer</div>
+                </div>
+                <div class="main">
+                    <div class="upload-area">
+                        <p>Upload your image for histogram analysis</p>
+                        <div class="controls">
+                            <input type="file" id="imageUpload" accept="image/*" style="display: none;">
+                            <label for="imageUpload" class="upload-btn">Choose File</label>
+                            <select id="filterMode" class="action-btn">
+                                <option value="RGB">RGB</option>
+                                <option value="GrayScale">GrayScale</option>
+                            </select>
+                            <button id="uploadHistogramButton" class="action-btn">Analyze</button>
+                        </div>
+                    </div>
+                    <div class="image-container">
+                        <div class="image-box">
+                            <h3>Original Image</h3>
+                            <div id="originalHistogram" class="image-content"></div>
+                        </div>
+                        <div class="image-box">
+                            <h3>Original Histogram</h3>
+                            <div id="histogramOriginal" class="image-content"></div>
+                        </div>
+                        <div class="image-box">
+                            <h3>Equalized Image</h3>
+                            <div id="equalizedHistogram" class="image-content"></div>
+                        </div>
+                        <div class="image-box">
+                            <h3>Equalized Histogram</h3>
+                            <div id="histogramEqualized" class="image-content"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Face Detection Page -->
+            <div id="face-detection" class="page">
+                <div class="header">
+                    <div class="title">Face Detection</div>
+                </div>
+                <div class="main">
+                    <div class="upload-area">
+                        <p>Upload your image for face detection</p>
+                        <div class="controls">
+                            <input type="file" id="faceDetectionUpload" accept="image/*" style="display: none;">
+                            <label for="faceDetectionUpload" class="upload-btn">Choose File</label>
+                            <button id="uploadFaceDetectionButton" class="action-btn">Detect Faces</button>
+                        </div>
+                    </div>
+                    <div class="image-container">
+                        <div class="image-box">
+                            <h3>Original Image</h3>
+                            <div id="originalFaceDetection" class="image-content"></div>
+                        </div>
+                        <div class="image-box">
+                            <h3>Face Detected Image</h3>
+                            <div id="faceDetectedImage" class="image-content"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Face Blurring Page -->
+            <div id="face-blurring" class="page">
+                <div class="header">
+                    <div class="title">Face Blur</div>
+                </div>
+                <div class="main">
+                    <div class="upload-area">
+                        <p>Upload your image for face blurring</p>
+                        <div class="controls">
+                            <input type="file" id="faceBlurUpload" accept="image/*" style="display: none;">
+                            <label for="faceBlurUpload" class="upload-btn">Choose File</label>
+                            <div class="blur-control">
+                                <span>Effect Value:</span>
+                                <input type="range" id="effectValue" min="0" max="100" value="50">
+                                <span id="effectValueDisplay" class="blur-value">50</span>
+                            </div>
+                            <button id="blurFaceButton" class="action-btn">Blur Face</button>
+                        </div>
+                    </div>
+                    <div class="image-container">
+                        <div class="image-box">
+                            <h3>Original Image</h3>
+                            <div id="originalBlur" class="image-content"></div>
+                        </div>
+                        <div class="image-box">
+                            <h3>Blurred Image</h3>
+                            <div id="processedImage" class="image-content"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Edge Detection Page -->
+            <div id="edge-detection" class="page">
+                <div class="header">
+                    <div class="title">Edge Detection</div>
+                </div>
+                <div class="main">
+                    <div class="upload-area">
+                        <p>Upload your image for edge detection</p>
+                        <div class="controls">
+                            <input type="file" id="edgeDetectionUpload" accept="image/*" style="display: none;">
+                            <label for="edgeDetectionUpload" class="upload-btn">Choose File</label>
+                            <select id="edgeMethod" class="action-btn">
+                                <option value="canny">Canny</option>
+                                <option value="sobel">Sobel</option>
+                                <option value="prewitt">Prewitt</option>
+                                <option value="laplacian">Laplacian</option>
+                            </select>
+                            <button id="uploadEdgeButton" class="action-btn">Detect Edges</button>
+                        </div>
+                    </div>
+                    <div class="image-container">
+                        <div class="image-box">
+                            <h3>Original Image</h3>
+                            <div id="originalEdge" class="image-content"></div>
+                        </div>
+                        <div class="image-box">
+                            <h3>Edge Detected Image</h3>
+                            <div id="edgeDetectedImage" class="image-content"></div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
+    </div>
 
-        <script>
-            // Navigation
-            document.querySelectorAll('.nav-link').forEach(link => {
-                link.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
-                    document.querySelectorAll('.nav-link').forEach(navLink => navLink.classList.remove('active'));
-                    const pageId = this.getAttribute('data-page');
-                    document.getElementById(pageId).classList.add('active');
-                    this.classList.add('active');
-                });
+    <script>
+        // Navigation
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
+                document.querySelectorAll('.nav-link').forEach(navLink => navLink.classList.remove('active'));
+                const pageId = this.getAttribute('data-page');
+                document.getElementById(pageId).classList.add('active');
+                this.classList.add('active');
             });
-            // Histogram Analyzer
-    document.getElementById('uploadHistogramButton').addEventListener('click', function() {
-        var file = document.getElementById('imageUpload').files[0];
-        var mode = document.getElementById('filterMode').value;
+        });
 
-        if (file) {
-            var formData = new FormData();
-            formData.append('image', file);
+        // Histogram Analyzer
+        document.getElementById('uploadHistogramButton').addEventListener('click', function () {
+            var file = document.getElementById('imageUpload').files[0];
+            var mode = document.getElementById('filterMode').value;
 
-            var reader = new FileReader();
-            
-            if (mode === 'GrayScale') {
-                // Kirim gambar ke endpoint untuk mengubahnya menjadi grayscale
-                fetch('http://127.0.0.1:5000/greyscale/image/original', {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => response.blob())
-                .then(blob => {
-                    var url = URL.createObjectURL(blob);
-                    document.getElementById('originalHistogram').innerHTML = `<img src="${url}" alt="Original Grayscale Image">`;
-                });
-            } else {
-                // Jika mode adalah RGB, tampilkan gambar yang diupload
-                reader.onload = function(e) {
-                    document.getElementById('originalHistogram').innerHTML = `<img src="${e.target.result}" alt="Original">`;
-                };
-                reader.readAsDataURL(file);
-            }
+            if (file) {
+                var formData = new FormData();
+                formData.append('image', file);
 
-            // Menentukan endpoint API
-            var histogramOriginalEndpoint = mode === 'RGB' ? 'http://127.0.0.1:5000/rgb/histogram/original' : 'http://127.0.0.1:5000/greyscale/histogram/original';
-            var imageEqualizedEndpoint = mode === 'RGB' ? 'http://127.0.0.1:5000/rgb/image/equalized' : 'http://127.0.0.1:5000/greyscale/image/equalized';
-            var histogramEqualizedEndpoint = mode === 'RGB' ? 'http://127.0.0.1:5000/rgb/histogram/equalized' : 'http://127.0.0.1:5000/greyscale/histogram/equalized';
+                var reader = new FileReader();
 
-            // Kirim data ke API
-            fetch(histogramOriginalEndpoint, {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.blob())
-            .then(blob => {
-                document.getElementById('histogramOriginal').innerHTML = `<img src="${URL.createObjectURL(blob)}" alt="Original Histogram">`;
-            });
-
-            fetch(imageEqualizedEndpoint, {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.blob())
-            .then(blob => {
-                document.getElementById('equalizedHistogram').innerHTML = `<img src="${URL.createObjectURL(blob)}" alt="Equalized Image">`;
-            });
-
-            fetch(histogramEqualizedEndpoint, {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.blob())
-            .then(blob => {
-                document.getElementById('histogramEqualized').innerHTML = `<img src="${URL.createObjectURL(blob)}" alt="Equalized Histogram">`;
-            });
-
-        } else {
-            alert('Please select an image first.');
-        }
-    });
-
-            
-            // Face Detection
-            document.getElementById('uploadFaceDetectionButton').addEventListener('click', function() {
-                var file = document.getElementById('faceDetectionUpload').files[0];
-            
-                if (file) {
-                    var reader = new FileReader();
-                    reader.onload = function(e) {
-                        document.getElementById('originalFaceDetection').innerHTML = `<img src="${e.target.result}" alt="Original Image">`;
-                    };
-                    reader.readAsDataURL(file);
-            
-                    var formData = new FormData();
-                    formData.append('image', file);
-            
-                    fetch('http://127.0.0.1:5000/api/face-detection', {
+                if (mode === 'GrayScale') {
+                    fetch('http://127.0.0.1:5000/greyscale/image/original', {
                         method: 'POST',
                         body: formData
                     })
+                        .then(response => response.blob())
+                        .then(blob => {
+                            var url = URL.createObjectURL(blob);
+                            document.getElementById('originalHistogram').innerHTML = `<img src="${url}" alt="Original Grayscale Image">`;
+                        });
+                } else {
+                    reader.onload = function (e) {
+                        document.getElementById('originalHistogram').innerHTML = `<img src="${e.target.result}" alt="Original">`;
+                    };
+                    reader.readAsDataURL(file);
+                }
+
+                var histogramOriginalEndpoint = mode === 'RGB' ? 'http://127.0.0.1:5000/rgb/histogram/original' : 'http://127.0.0.1:5000/greyscale/histogram/original';
+                var imageEqualizedEndpoint = mode === 'RGB' ? 'http://127.0.0.1:5000/rgb/image/equalized' : 'http://127.0.0.1:5000/greyscale/image/equalized';
+                var histogramEqualizedEndpoint = mode === 'RGB' ? 'http://127.0.0.1:5000/rgb/histogram/equalized' : 'http://127.0.0.1:5000/greyscale/histogram/equalized';
+
+                fetch(histogramOriginalEndpoint, {
+                    method: 'POST',
+                    body: formData
+                })
+                    .then(response => response.blob())
+                    .then(blob => {
+                        document.getElementById('histogramOriginal').innerHTML = `<img src="${URL.createObjectURL(blob)}" alt="Original Histogram">`;
+                    });
+
+                fetch(imageEqualizedEndpoint, {
+                    method: 'POST',
+                    body: formData
+                })
+                    .then(response => response.blob())
+                    .then(blob => {
+                        document.getElementById('equalizedHistogram').innerHTML = `<img src="${URL.createObjectURL(blob)}" alt="Equalized Image">`;
+                    });
+                fetch(histogramEqualizedEndpoint, {
+                    method: 'POST',
+                    body: formData
+                })
+                    .then(response => response.blob())
+                    .then(blob => {
+                        document.getElementById('histogramEqualized').innerHTML = `<img src="${URL.createObjectURL(blob)}" alt="Equalized Histogram">`;
+                    });
+
+            } else {
+                alert('Please select an image first.');
+            }
+        });
+
+        // Face Detection
+        document.getElementById('uploadFaceDetectionButton').addEventListener('click', function () {
+            var file = document.getElementById('faceDetectionUpload').files[0];
+
+            if (file) {
+                var reader = new FileReader();
+                reader.onload = function (e) {
+                    document.getElementById('originalFaceDetection').innerHTML = `<img src="${e.target.result}" alt="Original Image">`;
+                };
+                reader.readAsDataURL(file);
+
+                var formData = new FormData();
+                formData.append('image', file);
+
+                fetch('http://127.0.0.1:5000/api/face-detection', {
+                    method: 'POST',
+                    body: formData
+                })
                     .then(response => response.blob())
                     .then(blob => {
                         var url = URL.createObjectURL(blob);
                         document.getElementById('faceDetectedImage').innerHTML = `<img src="${url}" alt="Face Detected Image">`;
-                        alert('Face detection completed.');
                     })
                     .catch(error => {
-                        alert('Error occurred during face detection: ' + error);
+                        console.error('Error occurred during face detection:', error);
                     });
-                } else {
-                    alert('Please select an image first.');
-                }
-            });
-            
-            // Face Blur
-            document.getElementById('uploadBlurButton').addEventListener('click', function() {
-                var file = document.getElementById('faceBlurUpload').files[0];
-                var blurValue = parseInt(document.getElementById('blurValue').value, 10);
-            
-                if (file) {
-                    var reader = new FileReader();
-                    reader.onload = function(e) {
-                        document.getElementById('originalBlur').innerHTML = `<img src="${e.target.result}" alt="Original Image">`;
-                    };
-                    reader.readAsDataURL(file);
-            
-                    var formData = new FormData();
-                    formData.append('image', file);
-                    formData.append('blur_value', isNaN(blurValue) || blurValue <= 0 ? '15' : blurValue);  // Default to 15 if invalid
-            
-                    fetch('http://127.0.0.1:5000/api/face-blur', {
-                        method: 'POST',
-                        body: formData
-                    })
+            } else {
+                alert('Please select an image first.');
+            }
+        });
+
+        // Face Blur
+        let currentFaceFile = null;
+
+        document.getElementById('faceBlurUpload').addEventListener('change', function (event) {
+            currentFaceFile = event.target.files[0];
+            if (currentFaceFile) {
+                var reader = new FileReader();
+                reader.onload = function (e) {
+                    document.getElementById('originalBlur').innerHTML = `<img src="${e.target.result}" alt="Original Image">`;
+                };
+                reader.readAsDataURL(currentFaceFile);
+                processImage();
+            }
+        });
+
+        document.getElementById('effectValue').addEventListener('input', function () {
+            document.getElementById('effectValueDisplay').textContent = this.value;
+            processImage();
+        });
+
+        document.getElementById('blurFaceButton').addEventListener('click', function() {
+            processImage();
+        });
+
+        function processImage() {
+            if (!currentFaceFile) return;
+
+            var formData = new FormData();
+            formData.append('image', currentFaceFile);
+            formData.append('effect_value', document.getElementById('effectValue').value);
+            formData.append('effect_type', 'blur');
+
+            fetch('http://127.0.0.1:5000/api/face-effect', {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => response.blob())
+                .then(blob => {
+                    var url = URL.createObjectURL(blob);
+                    document.getElementById('processedImage').innerHTML = `<img src="${url}" alt="Processed Image">`;
+                })
+                .catch(error => {
+                    console.error('Error occurred during image processing:', error);
+                });
+        }
+
+        // Edge Detection
+        document.getElementById('uploadEdgeButton').addEventListener('click', function () {
+            var file = document.getElementById('edgeDetectionUpload').files[0];
+            var method = document.getElementById('edgeMethod').value;
+
+            if (file) {
+                var reader = new FileReader();
+                reader.onload = function (e) {
+                    document.getElementById('originalEdge').innerHTML = `<img src="${e.target.result}" alt="Original Image">`;
+                };
+                reader.readAsDataURL(file);
+
+                var formData = new FormData();
+                formData.append('image', file);
+                formData.append('method', method);
+
+                fetch('http://127.0.0.1:5000/api/edge-detection', {
+                    method: 'POST',
+                    body: formData
+                })
                     .then(response => response.blob())
                     .then(blob => {
                         var url = URL.createObjectURL(blob);
-                        document.getElementById('blurredImage').innerHTML = `<img src="${url}" alt="Blurred Image">`;
-                        alert('Face blurring completed with blur value: ' + blurValue);
+                        document.getElementById('edgeDetectedImage').innerHTML = `<img src="${url}" alt="Edge Detected Image">`;
                     })
                     .catch(error => {
-                        console.error('Error:', error);
-                        alert('Error occurred during face blurring: ' + error);
+                        console.error('Error occurred during edge detection:', error);
                     });
-                } else {
-                    alert('Please select an image first.');
-                }
-            });
-            
-            // Edge Detection
-document.getElementById('uploadEdgeButton').addEventListener('click', function() {
-    var file = document.getElementById('edgeDetectionUpload').files[0];
-    var method = document.getElementById('edgeMethod').value;  // Get selected method
-
-    if (file) {
-        var reader = new FileReader();
-        reader.onload = function(e) {
-            document.getElementById('originalEdge').innerHTML = `<img src="${e.target.result}" alt="Original Image">`;
-        };
-        reader.readAsDataURL(file);
-
-        var formData = new FormData();
-        formData.append('image', file);
-        formData.append('method', method);  // Append selected method to form data
-
-        fetch('http://127.0.0.1:5000/api/edge-detection', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.blob())
-        .then(blob => {
-            var url = URL.createObjectURL(blob);
-            document.getElementById('edgeDetectedImage').innerHTML = `<img src="${url}" alt="Edge Detected Image">`;
-            alert('Edge detection completed.');
-        })
-        .catch(error => {
-            alert('Error occurred during edge detection: ' + error);
+            } else {
+                alert('Please select an image first.');
+            }
         });
-    } else {
-        alert('Please select an image first.');
-    }
-});
+    </script>
+</body>
 
-        </script>
-    </body>
 </html>
