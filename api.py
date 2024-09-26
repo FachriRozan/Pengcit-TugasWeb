@@ -13,7 +13,6 @@ import base64
 matplotlib.use('Agg')
 app = Flask(__name__)
 CORS(app)
-# Load pre-trained face detector model (Haar cascade)
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
 
 # Face detection function
@@ -24,9 +23,8 @@ def detect_faces(image):
 
 # Face blurring function
 def blur_faces(image, faces, blur_value):
-    # Ensure blur_value is a positive odd number
-    blur_value = max(1, int(blur_value))  # Convert to integer and ensure it's at least 1
-    if blur_value % 2 == 0:  # Ensure blur_value is odd
+    blur_value = max(1, int(blur_value))
+    if blur_value % 2 == 0:
         blur_value += 1
 
     for (x, y, w, h) in faces:
@@ -38,8 +36,8 @@ def blur_faces(image, faces, blur_value):
 # Edge detection function
 def detect_edges(image):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    edges = cv2.Canny(gray, 100, 200)  # Canny edge detection
-    edges_colored = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)  # Convert single channel to 3 channels
+    edges = cv2.Canny(gray, 100, 200) 
+    edges_colored = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
     return edges_colored
 
 # Histogram functions
@@ -151,19 +149,14 @@ def face_blur():
 @app.route('/api/edge-detection', methods=['POST'])
 def edge_detection():
     file = request.files['image']
-    method = request.form.get('method', 'canny')  # Dapatkan metode dari request
-    
+    method = request.form.get('method', 'canny')
     img = Image.open(file.stream).convert('RGB')
     img_np = np.array(img)
     img_cv = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
-
-    # Terapkan metode edge detection yang dipilih
     edges = apply_edge_detection(img_cv, method)
 
     # Convert hasil edge detection kembali ke gambar
     edges_image = Image.fromarray(np.uint8(edges))
-
-    # Siapkan untuk dikirim kembali sebagai respons
     img_io = BytesIO()
     edges_image.save(img_io, 'PNG')
     img_io.seek(0)
@@ -243,10 +236,8 @@ def grayscale_equalized_image():
 @app.route('/greyscale/image/original', methods=['POST'])
 def grayscale_original_image():
     file = request.files['image']
-    img = Image.open(file.stream).convert('L')  # Mengubah gambar ke mode grayscale
+    img = Image.open(file.stream).convert('L')
     img_np = np.array(img)
-    
-    # Simpan gambar grayscale ke dalam BytesIO buffer
     img_io = BytesIO()
     img_pil = Image.fromarray(img_np)
     img_pil.save(img_io, 'PNG')
