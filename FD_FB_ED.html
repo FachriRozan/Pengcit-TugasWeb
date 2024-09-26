@@ -101,6 +101,27 @@
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
 
+        .upload-area h3 {
+            margin-bottom: 10px;
+            color: #2c3e50;
+            font-size: 24px;
+        }
+
+        .upload-controls {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .file-input-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
         .upload-btn,
         .action-btn {
             display: inline-block;
@@ -112,12 +133,36 @@
             transition: background-color 0.3s ease;
             border: none;
             font-size: 16px;
-            margin: 10px;
         }
 
         .upload-btn:hover,
         .action-btn:hover {
             background-color: #2980b9;
+        }
+
+        #file-name {
+            font-style: italic;
+            color: #7f8c8d;
+        }
+
+        .cluster-input {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .cluster-input label {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        select,
+        input[type="range"],
+        input[type="number"] {
+            padding: 10px;
+            margin: 10px;
+            border-radius: 5px;
+            border: 1px solid #3498db;
         }
 
         .image-container {
@@ -161,34 +206,6 @@
             border-radius: 5px;
         }
 
-        .instructions {
-            background-color: #e6f3f7;
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-
-        .instructions h3 {
-            margin-bottom: 10px;
-            color: #2c3e50;
-        }
-
-        .instructions ol {
-            padding-left: 20px;
-        }
-
-        .instructions li {
-            margin-bottom: 10px;
-        }
-
-        select,
-        input[type="range"] {
-            padding: 10px;
-            margin: 10px;
-            border-radius: 5px;
-            border: 1px solid #3498db;
-        }
-
         .blur-control {
             display: flex;
             align-items: center;
@@ -215,6 +232,7 @@
                 <li><a href="#" class="nav-link" data-page="face-detection">Face Detection</a></li>
                 <li><a href="#" class="nav-link" data-page="face-blurring">Face Blur</a></li>
                 <li><a href="#" class="nav-link" data-page="edge-detection">Edge Detection</a></li>
+                <li><a href="#" class="nav-link" data-page="segmentation">Image Segmentation</a></li>
             </ul>
         </nav>
         <div class="content">
@@ -341,6 +359,40 @@
                         <div class="image-box">
                             <h3>Edge Detected Image</h3>
                             <div id="edgeDetectedImage" class="image-content"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Image Segmentation Page -->
+            <div id="segmentation" class="page">
+                <div class="header">
+                    <div class="title">Image Segmentation</div>
+                </div>
+                <div class="main">
+                    <div class="upload-area">
+                        <h3>Image Segmentation</h3>
+                        <p>Upload an image and set the number of clusters for segmentation</p>
+                        <div class="upload-controls">
+                            <div class="file-input-wrapper">
+                                <input type="file" id="segmentationUpload" accept="image/*" style="display: none;">
+                                <label for="segmentationUpload" class="upload-btn">Choose File</label>
+                                <span id="file-name">No file chosen</span>
+                            </div>
+                            <div class="cluster-input">
+                                <label for="numClusters">Number of Clusters:</label>
+                                <input type="number" id="numClusters" min="2" max="10" value="3">
+                            </div>
+                            <button id="uploadSegmentationButton" class="action-btn">Segment Image</button>
+                        </div>
+                    </div>
+                    <div class="image-container">
+                        <div class="image-box">
+                            <h3>Original Image</h3>
+                            <div id="originalSegmentation" class="image-content"></div>
+                        </div>
+                        <div class="image-box">
+                            <h3>Segmented Image</h3>
+                            <div id="segmentedImage" class="image-content"></div>
                         </div>
                     </div>
                 </div>
@@ -528,6 +580,44 @@
                     })
                     .catch(error => {
                         console.error('Error occurred during edge detection:', error);
+                    });
+            } else {
+                alert('Please select an image first.');
+            }
+        });
+
+        // Image Segmentation
+        document.getElementById('segmentationUpload').addEventListener('change', function(e) {
+            var fileName = e.target.files[0] ? e.target.files[0].name : 'No file chosen';
+            document.getElementById('file-name').textContent = fileName;
+        });
+
+        document.getElementById('uploadSegmentationButton').addEventListener('click', function () {
+            var file = document.getElementById('segmentationUpload').files[0];
+            var numClusters = document.getElementById('numClusters').value;
+
+            if (file) {
+                var reader = new FileReader();
+                reader.onload = function (e) {
+                    document.getElementById('originalSegmentation').innerHTML = `<img src="${e.target.result}" alt="Original Image">`;
+                };
+                reader.readAsDataURL(file);
+
+                var formData = new FormData();
+                formData.append('image', file);
+                formData.append('num_clusters', numClusters);
+
+                fetch('http://127.0.0.1:5000/api/image-segmentation', {
+                    method: 'POST',
+                    body: formData
+                })
+                    .then(response => response.blob())
+                    .then(blob => {
+                        var url = URL.createObjectURL(blob);
+                        document.getElementById('segmentedImage').innerHTML = `<img src="${url}" alt="Segmented Image">`;
+                    })
+                    .catch(error => {
+                        console.error('Error occurred during image segmentation:', error);
                     });
             } else {
                 alert('Please select an image first.');
