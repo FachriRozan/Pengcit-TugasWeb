@@ -1,19 +1,66 @@
-from flask import Flask, request, send_file, jsonify
+from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
-import cv2
+import torch
+from torchvision import models
+from PIL import Image
 import numpy as np
 import io
+import torchvision.transforms as T
+import cv2
 import matplotlib.pyplot as plt
 from io import BytesIO
-from PIL import Image
-import zipfile
-import matplotlib
-import base64
 
-matplotlib.use('Agg')
+# Inisialisasi Flask app
 app = Flask(__name__)
-CORS(app)
+CORS(app)  # Izinkan semua asal untuk semua endpoint
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+
+# Load model DeepLabV3 yang sudah dilatih
+SegModel = models.segmentation.deeplabv3_resnet101(pretrained=True).eval()
+
+# Fungsi untuk decode hasil segmentasi menjadi gambar RGB
+def decode_segmap(image, nc=21):
+    label_colors = np.array([(0, 0, 0),  # 0=background
+                             (128, 0, 0), (0, 128, 0), (128, 128, 0), (0, 0, 128), (128, 0, 128),
+                             (0, 128, 128), (128, 128, 128), (64, 0, 0), (192, 0, 0), (64, 128, 0),
+                             (192, 128, 0), (64, 0, 128), (192, 0, 128), (64, 128, 128), (192, 128, 128),
+                             (0, 64, 0), (128, 64, 0), (0, 192, 0), (128, 192, 0), (0, 64, 128)])
+
+    r = np.zeros_like(image).astype(np.uint8)
+    g = np.zeros_like(image).astype(np.uint8)
+    b = np.zeros_like(image).astype(np.uint8)
+
+    for l in range(0, nc):
+        idx = image == l
+        r[idx] = label_colors[l, 0]
+        g[idx] = label_colors[l, 1]
+        b[idx] = label_colors[l, 2]
+
+    rgb = np.stack([r, g, b], axis=2)
+    return rgb
+
+# Fungsi untuk melakukan segmentasi gambar
+def segment_image(image):
+    # Transformasi gambar sesuai model DeepLabV3
+    trf = T.Compose([T.Resize(256),
+                     T.CenterCrop(224),
+                     T.ToTensor(),
+                     T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
+    
+    # Proses gambar
+    inp = trf(image).unsqueeze(0)
+    
+    # Prediksi dengan model DeepLabV3
+    with torch.no_grad():
+        out = SegModel(inp)['out']
+    
+    # Dapatkan segmen prediksi
+    predicted = torch.argmax(out.squeeze(), dim=0).detach().cpu().numpy()
+    
+    # Decode segmen prediksi menjadi gambar RGB
+    rgb_image = decode_segmap(predicted)
+    
+    return rgb_image
 
 # Face detection function
 def detect_faces(image):
@@ -34,11 +81,21 @@ def blur_faces(image, faces, blur_value):
     return image
 
 # Edge detection function
-def detect_edges(image):
+def apply_edge_detection(image, method):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    edges = cv2.Canny(gray, 100, 200) 
-    edges_colored = cv2.cvtColor(edges, cv2.COLOR_GRAY2BGR)
-    return edges_colored
+    if method == 'canny':
+        edges = cv2.Canny(gray, 100, 200)
+    elif method == 'sobel':
+        edges = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=5) + cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=5)
+    elif method == 'prewitt':
+        kernelx = np.array([[1, 0, -1], [1, 0, -1], [1, 0, -1]])
+        kernely = np.array([[1, 1, 1], [0, 0, 0], [-1, -1, -1]])
+        edges = cv2.filter2D(gray, -1, kernelx) + cv2.filter2D(gray, -1, kernely)
+    elif method == 'laplacian':
+        edges = cv2.Laplacian(gray, cv2.CV_64F)
+    else:
+        raise ValueError("Unsupported edge detection method")
+    return edges
 
 # Histogram functions
 def calculate_rgb_histogram(image):
@@ -84,22 +141,38 @@ def equalize_image(image, mode='RGB'):
     else:  # Grayscale
         return cv2.equalizeHist(image)
 
+# API for image segmentation
+@app.route('/segment', methods=['POST'])
+def segment():
+    try:
+        if 'image' not in request.files:
+            return jsonify({"error": "No image uploaded"}), 400
 
-def apply_edge_detection(image, method):
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    if method == 'canny':
-        edges = cv2.Canny(gray, 100, 200)
-    elif method == 'sobel':
-        edges = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=5) + cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=5)
-    elif method == 'prewitt':
-        kernelx = np.array([[1, 0, -1], [1, 0, -1], [1, 0, -1]])
-        kernely = np.array([[1, 1, 1], [0, 0, 0], [-1, -1, -1]])
-        edges = cv2.filter2D(gray, -1, kernelx) + cv2.filter2D(gray, -1, kernely)
-    elif method == 'laplacian':
-        edges = cv2.Laplacian(gray, cv2.CV_64F)
-    else:
-        raise ValueError("Unsupported edge detection method")
-    return edges
+        file = request.files['image']
+        if not file:
+            return jsonify({"error": "No file provided"}), 400
+        
+        img = Image.open(file.stream)
+
+        # Validasi format gambar
+        if img.format not in ['JPEG', 'PNG']:
+            return jsonify({"error": "Unsupported image format"}), 400
+
+        # Proses segmentasi gambar
+        segmented_image = segment_image(img)
+        segmented_pil = Image.fromarray(segmented_image.astype('uint8'))
+
+        # Simpan ke buffer untuk dikirim sebagai response
+        buf = io.BytesIO()
+        segmented_pil.save(buf, format='JPEG')
+        buf.seek(0)
+
+        # Kirim gambar sebagai response
+        return send_file(buf, mimetype='image/jpeg')
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500  # Kirim pesan kesalahan dalam response
+
 # API for face detection
 @app.route('/api/face-detection', methods=['POST'])
 def face_detection():
@@ -133,12 +206,11 @@ def face_effect():
 
     # Perform face detection
     faces = detect_faces(img_cv)
-
-    # Apply the blur effect
-    processed_img = blur_faces(img_cv, faces, effect_value)
+    # Apply blur effect
+    blurred_image = blur_faces(img_cv, faces, effect_value)
 
     # Convert image back to PIL for sending as response
-    img_pil = Image.fromarray(cv2.cvtColor(processed_img, cv2.COLOR_BGR2RGB))
+    img_pil = Image.fromarray(cv2.cvtColor(blurred_image, cv2.COLOR_BGR2RGB))
     img_io = BytesIO()
     img_pil.save(img_io, 'PNG')
     img_io.seek(0)
@@ -149,100 +221,59 @@ def face_effect():
 @app.route('/api/edge-detection', methods=['POST'])
 def edge_detection():
     file = request.files['image']
-    method = request.form.get('method', 'canny')
-    img = Image.open(file.stream).convert('RGB')
-    img_np = np.array(img)
-    img_cv = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
-    edges = apply_edge_detection(img_cv, method)
+    edge_method = request.form.get('edge_method', 'canny')  # Get edge method from form data, default to 'canny'
 
-    # Convert hasil edge detection kembali ke gambar
-    edges_image = Image.fromarray(np.uint8(edges))
-    img_io = BytesIO()
-    edges_image.save(img_io, 'PNG')
-    img_io.seek(0)
-
-    return send_file(img_io, mimetype='image/png')
-
-# Histogram equalization
-
-@app.route('/rgb/histogram/original', methods=['POST'])
-def rgb_original_histogram():
-    file = request.files['image']
     img = Image.open(file.stream).convert('RGB')
     img_np = np.array(img)
     img_cv = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
 
-    img_buf = calculate_rgb_histogram(img_cv)
-    return send_file(img_buf, mimetype='image/png')
+    # Apply edge detection
+    edges = apply_edge_detection(img_cv, edge_method)
 
-@app.route('/rgb/histogram/equalized', methods=['POST'])
-def rgb_equalized_histogram():
-    file = request.files['image']
-    img = Image.open(file.stream).convert('RGB')
-    img_np = np.array(img)
-    img_cv = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
-
-    equalized_img = equalize_image(img_cv, 'RGB')
-    img_buf = calculate_rgb_histogram(equalized_img)
-    return send_file(img_buf, mimetype='image/png')
-
-@app.route('/rgb/image/equalized', methods=['POST'])
-def rgb_equalized_image():
-    file = request.files['image']
-    img = Image.open(file.stream).convert('RGB')
-    img_np = np.array(img)
-    img_cv = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
-
-    equalized_img = equalize_image(img_cv, 'RGB')
-    img_pil = Image.fromarray(cv2.cvtColor(equalized_img, cv2.COLOR_BGR2RGB))
-    
+    # Convert result back to PIL for sending as response
+    img_pil = Image.fromarray(edges)
     img_io = BytesIO()
     img_pil.save(img_io, 'PNG')
     img_io.seek(0)
+
     return send_file(img_io, mimetype='image/png')
 
-@app.route('/greyscale/histogram/original', methods=['POST'])
-def grayscale_original_histogram():
+# API for RGB histogram
+@app.route('/histogram/original', methods=['POST'])
+def original_histogram():
     file = request.files['image']
-    img = Image.open(file.stream).convert('L')
+    img = Image.open(file.stream).convert('RGB')
     img_np = np.array(img)
 
-    img_buf = calculate_grayscale_histogram(img_np)
-    return send_file(img_buf, mimetype='image/png')
+    # Calculate RGB histogram
+    hist_buf = calculate_rgb_histogram(img_np)
 
-@app.route('/greyscale/histogram/equalized', methods=['POST'])
-def grayscale_equalized_histogram():
+    return send_file(hist_buf, mimetype='image/png')
+
+# API for equalized histogram
+@app.route('/histogram/equalized', methods=['POST'])
+def equalized_histogram():
     file = request.files['image']
-    img = Image.open(file.stream).convert('L')
+    img = Image.open(file.stream).convert('RGB')
     img_np = np.array(img)
 
-    equalized_img = equalize_image(img_np, 'Grayscale')
-    img_buf = calculate_grayscale_histogram(equalized_img)
-    return send_file(img_buf, mimetype='image/png')
+    # Perform histogram equalization
+    equalized_image = equalize_image(img_np, mode='RGB')
+    hist_buf = calculate_rgb_histogram(equalized_image)
 
-@app.route('/greyscale/image/equalized', methods=['POST'])
-def grayscale_equalized_image():
+    return send_file(hist_buf, mimetype='image/png')
+
+# API for grayscale image and its histogram
+@app.route('/histogram/grayscale', methods=['POST'])
+def grayscale_histogram():
     file = request.files['image']
-    img = Image.open(file.stream).convert('L')
+    img = Image.open(file.stream).convert('L')  # Convert to grayscale
     img_np = np.array(img)
 
-    equalized_img = equalize_image(img_np, 'Grayscale')
-    img_pil = Image.fromarray(equalized_img)
-    
-    img_io = BytesIO()
-    img_pil.save(img_io, 'PNG')
-    img_io.seek(0)
-    return send_file(img_io, mimetype='image/png')
-@app.route('/greyscale/image/original', methods=['POST'])
-def grayscale_original_image():
-    file = request.files['image']
-    img = Image.open(file.stream).convert('L')
-    img_np = np.array(img)
-    img_io = BytesIO()
-    img_pil = Image.fromarray(img_np)
-    img_pil.save(img_io, 'PNG')
-    img_io.seek(0)
-    return send_file(img_io, mimetype='image/png')
+    # Calculate grayscale histogram
+    hist_buf = calculate_grayscale_histogram(img_np)
+
+    return send_file(hist_buf, mimetype='image/png')
 
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=5000, debug=True)

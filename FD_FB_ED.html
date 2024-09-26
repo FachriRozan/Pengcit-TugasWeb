@@ -371,16 +371,12 @@
                 <div class="main">
                     <div class="upload-area">
                         <h3>Image Segmentation</h3>
-                        <p>Upload an image and set the number of clusters for segmentation</p>
+                        <p>Upload an image for semantic segmentation</p>
                         <div class="upload-controls">
                             <div class="file-input-wrapper">
                                 <input type="file" id="segmentationUpload" accept="image/*" style="display: none;">
                                 <label for="segmentationUpload" class="upload-btn">Choose File</label>
                                 <span id="file-name">No file chosen</span>
-                            </div>
-                            <div class="cluster-input">
-                                <label for="numClusters">Number of Clusters:</label>
-                                <input type="number" id="numClusters" min="2" max="10" value="3">
                             </div>
                             <button id="uploadSegmentationButton" class="action-btn">Segment Image</button>
                         </div>
@@ -586,39 +582,42 @@
             }
         });
 
-        // Image Segmentation
+        //image segmentation
         document.getElementById('segmentationUpload').addEventListener('change', function(e) {
             var fileName = e.target.files[0] ? e.target.files[0].name : 'No file chosen';
             document.getElementById('file-name').textContent = fileName;
         });
-
-        document.getElementById('uploadSegmentationButton').addEventListener('click', function () {
+        
+        document.getElementById('uploadSegmentationButton').addEventListener('click', function() {
             var file = document.getElementById('segmentationUpload').files[0];
-            var numClusters = document.getElementById('numClusters').value;
-
+        
             if (file) {
                 var reader = new FileReader();
-                reader.onload = function (e) {
+                reader.onload = function(e) {
                     document.getElementById('originalSegmentation').innerHTML = `<img src="${e.target.result}" alt="Original Image">`;
                 };
                 reader.readAsDataURL(file);
-
+        
                 var formData = new FormData();
                 formData.append('image', file);
-                formData.append('num_clusters', numClusters);
-
-                fetch('http://127.0.0.1:5000/api/image-segmentation', {
+        
+                fetch('http://127.0.0.1:5000/segment', {
                     method: 'POST',
                     body: formData
                 })
-                    .then(response => response.blob())
-                    .then(blob => {
-                        var url = URL.createObjectURL(blob);
-                        document.getElementById('segmentedImage').innerHTML = `<img src="${url}" alt="Segmented Image">`;
-                    })
-                    .catch(error => {
-                        console.error('Error occurred during image segmentation:', error);
-                    });
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.blob();
+                })
+                .then(blob => {
+                    var url = URL.createObjectURL(blob);
+                    document.getElementById('segmentedImage').innerHTML = `<img src="${url}" alt="Segmented Image">`;
+                })
+                .catch(error => {
+                    console.error('Error occurred during image segmentation:', error);
+                });
             } else {
                 alert('Please select an image first.');
             }
