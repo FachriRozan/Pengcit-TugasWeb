@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Image Processing Dashboard</title>
     <style>
+        /* Existing styles */
         * {
             margin: 0;
             padding: 0;
@@ -233,6 +234,9 @@
                 <li><a href="#" class="nav-link" data-page="face-blurring">Face Blur</a></li>
                 <li><a href="#" class="nav-link" data-page="edge-detection">Edge Detection</a></li>
                 <li><a href="#" class="nav-link" data-page="segmentation">Image Segmentation</a></li>
+                <li><a href="#" class="nav-link" data-page="kasus1">Kasus 1</a></li>
+                <li><a href="#" class="nav-link" data-page="kasus2">Kasus 2</a></li>
+                <li><a href="#" class="nav-link" data-page="kasus3">Kasus 3</a></li>
             </ul>
         </nav>
         <div class="content">
@@ -347,6 +351,8 @@
                                 <option value="sobel">Sobel</option>
                                 <option value="prewitt">Prewitt</option>
                                 <option value="laplacian">Laplacian</option>
+                                <option value="roberts">Roberts Cross</option>
+                                <option value="scharr">Scharr</option>
                             </select>
                             <button id="uploadEdgeButton" class="action-btn">Detect Edges</button>
                         </div>
@@ -393,6 +399,84 @@
                     </div>
                 </div>
             </div>
+            <!-- Kasus 1 Page -->
+            <div id="kasus1" class="page">
+                <div class="header">
+                    <div class="title">Kasus 1</div>
+                </div>
+                <div class="main">
+                    <div class="upload-area">
+                        <p>Upload your image for Kasus 1</p>
+                        <div class="controls">
+                            <input type="file" id="kasus1Upload" accept="image/*" style="display: none;">
+                            <label for="kasus1Upload" class="upload-btn">Choose File</label>
+                            <button id="uploadKasus1Button" class="action-btn">Process Image</button>
+                        </div>
+                    </div>
+                    <div class="image-container">
+                        <div class="image-box">
+                            <h3>Original Image</h3>
+                            <div id="originalKasus1" class="image-content"></div>
+                        </div>
+                        <div class="image-box">
+                            <h3>Processed Image</h3>
+                            <div id="processedKasus1" class="image-content"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Kasus 2 Page -->
+            <div id="kasus2" class="page">
+                <div class="header">
+                    <div class="title">Kasus 2</div>
+                </div>
+                <div class="main">
+                    <div class="upload-area">
+                        <p>Upload your image for Kasus 2</p>
+                        <div class="controls">
+                            <input type="file" id="kasus2Upload" accept="image/*" style="display: none;">
+                            <label for="kasus2Upload" class="upload-btn">Choose File</label>
+                            <button id="uploadKasus2Button" class="action-btn">Process Image</button>
+                        </div>
+                    </div>
+                    <div class="image-container">
+                        <div class="image-box">
+                            <h3>Original Image</h3>
+                            <div id="originalKasus2" class="image-content"></div>
+                        </div>
+                        <div class="image-box">
+                            <h3>Processed Image</h3>
+                            <div id="processedKasus2" class="image-content"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Kasus 3 Page -->
+            <div id="kasus3" class="page">
+                <div class="header">
+                    <div class="title">Kasus 3</div>
+                </div>
+                <div class="main">
+                    <div class="upload-area">
+                        <p>Upload your image for Kasus 3</p>
+                        <div class="controls">
+                            <input type="file" id="kasus3Upload" accept="image/*" style="display: none;">
+                            <label for="kasus3Upload" class="upload-btn">Choose File</label>
+                            <button id="uploadKasus3Button" class="action-btn">Process Image</button>
+                        </div>
+                    </div>
+                    <div class="image-container">
+                        <div class="image-box">
+                            <h3>Original Image</h3>
+                            <div id="originalKasus3" class="image-content"></div>
+                        </div>
+                        <div class="image-box">
+                            <h3>Processed Image</h3>
+                            <div id="processedKasus3" class="image-content"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -408,39 +492,27 @@
                 this.classList.add('active');
             });
         });
-
+    
         // Histogram Analyzer
         document.getElementById('uploadHistogramButton').addEventListener('click', function () {
             var file = document.getElementById('imageUpload').files[0];
             var mode = document.getElementById('filterMode').value;
-
+    
             if (file) {
                 var formData = new FormData();
                 formData.append('image', file);
-
+    
                 var reader = new FileReader();
-
-                if (mode === 'GrayScale') {
-                    fetch('http://127.0.0.1:5000/greyscale/image/original', {
-                        method: 'POST',
-                        body: formData
-                    })
-                        .then(response => response.blob())
-                        .then(blob => {
-                            var url = URL.createObjectURL(blob);
-                            document.getElementById('originalHistogram').innerHTML = `<img src="${url}" alt="Original Grayscale Image">`;
-                        });
-                } else {
-                    reader.onload = function (e) {
-                        document.getElementById('originalHistogram').innerHTML = `<img src="${e.target.result}" alt="Original">`;
-                    };
-                    reader.readAsDataURL(file);
-                }
-
-                var histogramOriginalEndpoint = mode === 'RGB' ? 'http://127.0.0.1:5000/rgb/histogram/original' : 'http://127.0.0.1:5000/greyscale/histogram/original';
-                var imageEqualizedEndpoint = mode === 'RGB' ? 'http://127.0.0.1:5000/rgb/image/equalized' : 'http://127.0.0.1:5000/greyscale/image/equalized';
-                var histogramEqualizedEndpoint = mode === 'RGB' ? 'http://127.0.0.1:5000/rgb/histogram/equalized' : 'http://127.0.0.1:5000/greyscale/histogram/equalized';
-
+    
+                reader.onload = function (e) {
+                    document.getElementById('originalHistogram').innerHTML = `<img src="${e.target.result}" alt="Original Image">`;
+                };
+                reader.readAsDataURL(file);
+    
+                var histogramOriginalEndpoint = mode === 'RGB' ? 'http://127.0.0.1:5000/histogram/original' : 'http://127.0.0.1:5000/histogram/grayscale';
+                var imageEqualizedEndpoint = mode === 'RGB' ? 'http://127.0.0.1:5000/histogram/equalized' : 'http://127.0.0.1:5000/histogram/equalized-grayscale';
+                var histogramEqualizedEndpoint = mode === 'RGB' ? 'http://127.0.0.1:5000/histogram/equalized-histogram' : 'http://127.0.0.1:5000/histogram/equalized-histogram-grayscale';
+    
                 fetch(histogramOriginalEndpoint, {
                     method: 'POST',
                     body: formData
@@ -448,8 +520,11 @@
                     .then(response => response.blob())
                     .then(blob => {
                         document.getElementById('histogramOriginal').innerHTML = `<img src="${URL.createObjectURL(blob)}" alt="Original Histogram">`;
+                    })
+                    .catch(error => {
+                        console.error('Error occurred while fetching original histogram:', error);
                     });
-
+    
                 fetch(imageEqualizedEndpoint, {
                     method: 'POST',
                     body: formData
@@ -457,7 +532,11 @@
                     .then(response => response.blob())
                     .then(blob => {
                         document.getElementById('equalizedHistogram').innerHTML = `<img src="${URL.createObjectURL(blob)}" alt="Equalized Image">`;
+                    })
+                    .catch(error => {
+                        console.error('Error occurred while fetching equalized image:', error);
                     });
+    
                 fetch(histogramEqualizedEndpoint, {
                     method: 'POST',
                     body: formData
@@ -465,27 +544,30 @@
                     .then(response => response.blob())
                     .then(blob => {
                         document.getElementById('histogramEqualized').innerHTML = `<img src="${URL.createObjectURL(blob)}" alt="Equalized Histogram">`;
+                    })
+                    .catch(error => {
+                        console.error('Error occurred while fetching equalized histogram:', error);
                     });
-
+    
             } else {
                 alert('Please select an image first.');
             }
         });
-
+    
         // Face Detection
         document.getElementById('uploadFaceDetectionButton').addEventListener('click', function () {
             var file = document.getElementById('faceDetectionUpload').files[0];
-
+    
             if (file) {
                 var reader = new FileReader();
                 reader.onload = function (e) {
                     document.getElementById('originalFaceDetection').innerHTML = `<img src="${e.target.result}" alt="Original Image">`;
                 };
                 reader.readAsDataURL(file);
-
+    
                 var formData = new FormData();
                 formData.append('image', file);
-
+    
                 fetch('http://127.0.0.1:5000/api/face-detection', {
                     method: 'POST',
                     body: formData
@@ -502,10 +584,10 @@
                 alert('Please select an image first.');
             }
         });
-
+    
         // Face Blur
         let currentFaceFile = null;
-
+    
         document.getElementById('faceBlurUpload').addEventListener('change', function (event) {
             currentFaceFile = event.target.files[0];
             if (currentFaceFile) {
@@ -517,24 +599,23 @@
                 processImage();
             }
         });
-
+    
         document.getElementById('effectValue').addEventListener('input', function () {
             document.getElementById('effectValueDisplay').textContent = this.value;
             processImage();
         });
-
-        document.getElementById('blurFaceButton').addEventListener('click', function() {
+    
+        document.getElementById('blurFaceButton').addEventListener('click', function () {
             processImage();
         });
-
+    
         function processImage() {
             if (!currentFaceFile) return;
-
+    
             var formData = new FormData();
             formData.append('image', currentFaceFile);
             formData.append('effect_value', document.getElementById('effectValue').value);
-            formData.append('effect_type', 'blur');
-
+    
             fetch('http://127.0.0.1:5000/api/face-effect', {
                 method: 'POST',
                 body: formData
@@ -548,23 +629,23 @@
                     console.error('Error occurred during image processing:', error);
                 });
         }
-
+    
         // Edge Detection
         document.getElementById('uploadEdgeButton').addEventListener('click', function () {
             var file = document.getElementById('edgeDetectionUpload').files[0];
             var method = document.getElementById('edgeMethod').value;
-
+    
             if (file) {
                 var reader = new FileReader();
                 reader.onload = function (e) {
                     document.getElementById('originalEdge').innerHTML = `<img src="${e.target.result}" alt="Original Image">`;
                 };
                 reader.readAsDataURL(file);
-
+    
                 var formData = new FormData();
                 formData.append('image', file);
                 formData.append('method', method);
-
+    
                 fetch('http://127.0.0.1:5000/api/edge-detection', {
                     method: 'POST',
                     body: formData
@@ -581,43 +662,43 @@
                 alert('Please select an image first.');
             }
         });
-
-        //image segmentation
-        document.getElementById('segmentationUpload').addEventListener('change', function(e) {
+    
+        // Image Segmentation
+        document.getElementById('segmentationUpload').addEventListener('change', function (e) {
             var fileName = e.target.files[0] ? e.target.files[0].name : 'No file chosen';
             document.getElementById('file-name').textContent = fileName;
         });
-        
-        document.getElementById('uploadSegmentationButton').addEventListener('click', function() {
+    
+        document.getElementById('uploadSegmentationButton').addEventListener('click', function () {
             var file = document.getElementById('segmentationUpload').files[0];
-        
+    
             if (file) {
                 var reader = new FileReader();
-                reader.onload = function(e) {
+                reader.onload = function (e) {
                     document.getElementById('originalSegmentation').innerHTML = `<img src="${e.target.result}" alt="Original Image">`;
                 };
                 reader.readAsDataURL(file);
-        
+    
                 var formData = new FormData();
                 formData.append('image', file);
-        
+    
                 fetch('http://127.0.0.1:5000/segment', {
                     method: 'POST',
                     body: formData
                 })
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Network response was not ok');
-                    }
-                    return response.blob();
-                })
-                .then(blob => {
-                    var url = URL.createObjectURL(blob);
-                    document.getElementById('segmentedImage').innerHTML = `<img src="${url}" alt="Segmented Image">`;
-                })
-                .catch(error => {
-                    console.error('Error occurred during image segmentation:', error);
-                });
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok');
+                        }
+                        return response.blob();
+                    })
+                    .then(blob => {
+                        var url = URL.createObjectURL(blob);
+                        document.getElementById('segmentedImage').innerHTML = `<img src="${url}" alt="Segmented Image">`;
+                    })
+                    .catch(error => {
+                        console.error('Error occurred during image segmentation:', error);
+                    });
             } else {
                 alert('Please select an image first.');
             }
