@@ -20,6 +20,10 @@ face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_fronta
 # Load model DeepLabV3 yang sudah dilatih
 SegModel = models.segmentation.deeplabv3_resnet101(pretrained=True).eval()
 
+# Image inversion function
+def invert_image(image):
+    inverted_image = 255 - image
+    return inverted_image
 
 def dithering(image):
     """Apply dithering to an RGB image."""
@@ -320,6 +324,24 @@ def dither():
     # Convert result back to buffer for response
     img_io = BytesIO()
     dithered_img.save(img_io, 'PNG')
+    img_io.seek(0)
+
+    return send_file(img_io, mimetype='image/png')
+
+# API for image inversion
+@app.route('/api/image-inversion', methods=['POST'])
+def image_inversion():
+    file = request.files['image']
+    img = Image.open(file.stream).convert('RGB')
+    img_np = np.array(img)
+
+    # Perform image inversion
+    inverted_image = invert_image(img_np)
+
+    # Convert inverted image to PIL for sending as response
+    inverted_img = Image.fromarray(inverted_image)
+    img_io = BytesIO()
+    inverted_img.save(img_io, 'PNG')
     img_io.seek(0)
 
     return send_file(img_io, mimetype='image/png')

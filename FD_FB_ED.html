@@ -235,7 +235,7 @@
                 <li><a href="#" class="nav-link" data-page="edge-detection">Edge Detection</a></li>
                 <li><a href="#" class="nav-link" data-page="segmentation">Image Segmentation</a></li>
                 <li><a href="#" class="nav-link" data-page="kasus1">Image Dithering</a></li>
-                <li><a href="#" class="nav-link" data-page="kasus2">Kasus 2</a></li>
+                <li><a href="#" class="nav-link" data-page="inversion">Image Inversion</a></li>
                 <li><a href="#" class="nav-link" data-page="kasus3">Kasus 3</a></li>
             </ul>
         </nav>
@@ -425,28 +425,27 @@
                     </div>
                 </div>
             </div>
-            <!-- Kasus 2 Page -->
-            <div id="kasus2" class="page">
+            <div id="inversion" class="page">
                 <div class="header">
-                    <div class="title">Kasus 2</div>
+                    <div class="title">Image Inversion</div>
                 </div>
                 <div class="main">
                     <div class="upload-area">
-                        <p>Upload your image for Kasus 2</p>
+                        <p>Upload your image for inversion</p>
                         <div class="controls">
-                            <input type="file" id="kasus2Upload" accept="image/*" style="display: none;">
-                            <label for="kasus2Upload" class="upload-btn">Choose File</label>
-                            <button id="uploadKasus2Button" class="action-btn">Process Image</button>
+                            <input type="file" id="inversionUpload" accept="image/*" style="display: none;">
+                            <label for="inversionUpload" class="upload-btn">Choose File</label>
+                            <button id="uploadInversionButton" class="action-btn">Invert</button>
                         </div>
                     </div>
                     <div class="image-container">
                         <div class="image-box">
                             <h3>Original Image</h3>
-                            <div id="originalKasus2" class="image-content"></div>
+                            <div id="originalInversion" class="image-content"></div>
                         </div>
                         <div class="image-box">
-                            <h3>Processed Image</h3>
-                            <div id="processedKasus2" class="image-content"></div>
+                            <h3>Inverted Image</h3>
+                            <div id="invertedImage" class="image-content"></div>
                         </div>
                     </div>
                 </div>
@@ -733,6 +732,47 @@
                 alert('Please select an image first.');
             }
         });
+// Image Inversion
+document.getElementById('uploadInversionButton').addEventListener('click', function () {
+    var fileInput = document.getElementById('inversionUpload');
+    var file = fileInput.files[0];
+
+    if (file) {
+        // Display Original Image
+        var reader = new FileReader();
+        reader.onload = function (e) {
+            document.getElementById('originalInversion').innerHTML = `<img src="${e.target.result}" alt="Original Image">`; // Perbaiki disini
+        };
+        reader.readAsDataURL(file);
+
+        // Prepare FormData
+        var formData = new FormData();
+        formData.append('image', file);
+
+        // Fetch Inverted Image from API
+        fetch('http://127.0.0.1:5000/api/image-inversion', {
+            method: 'POST',
+            body: formData
+        })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => { throw err; });
+                }
+                return response.blob();
+            })
+            .then(blob => {
+                var url = URL.createObjectURL(blob);
+                document.getElementById('invertedImage').innerHTML = `<img src="${url}" alt="Inverted Image">`; // Perbaiki disini
+            })
+            .catch(error => {
+                console.error('Error occurred during image inversion:', error);
+                alert('Image inversion failed. Please try again.');
+            });
+    } else {
+        alert('Please select an image first.');
+    }
+});
+
     </script>
 </body>
 
