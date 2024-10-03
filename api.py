@@ -25,6 +25,7 @@ def invert_image(image):
     inverted_image = 255 - image
     return inverted_image
 
+# Image Dithering
 def dithering(image):
     """Apply dithering to an RGB image."""
     # Convert image to numpy array
@@ -55,6 +56,31 @@ def dithering(image):
     dithered_img = Image.fromarray(np.uint8(gray_img))
 
     return dithered_img
+
+# Image Deblurring 
+def deblur_image(image, blur_type):
+    if blur_type == 'motion':
+        kernel = np.zeros((15, 15))
+        kernel[int((15 - 1) / 2), :] = np.ones(15)
+        kernel = kernel / 15
+    elif blur_type == 'linear_motion':
+        kernel = np.zeros((15, 15))
+        kernel[:, int((15 - 1) / 2)] = np.ones(15)
+        kernel = kernel / 15
+    elif blur_type == 'gaussian':
+        kernel = cv2.getGaussianKernel(15, 0)
+        kernel = kernel * kernel.T
+    elif blur_type == 'defocus':
+        kernel = np.zeros((15, 15))
+        cv2.circle(kernel, (int(15 / 2), int(15 / 2)), 7, 1, -1)
+        kernel = kernel / np.sum(kernel)
+    elif blur_type == 'atmospheric':
+        kernel = np.ones((15, 15)) / (15 * 15)
+    else:
+        raise ValueError("Unsupported blur type")
+
+    deblurred = cv2.filter2D(image, -1, kernel)
+    return deblurred
 
 # Fungsi untuk decode hasil segmentasi menjadi gambar RGB
 def decode_segmap(image, nc=21):
@@ -345,5 +371,27 @@ def image_inversion():
     img_io.seek(0)
 
     return send_file(img_io, mimetype='image/png')
+
+# API for Image Deblurring
+@app.route('/api/deblur', methods=['POST'])
+def deblur():
+    file = request.files['image']
+    blur_type = request.form.get('blur_type', 'motion')  # Get blur type from form data, default to 'motion'
+
+    img = Image.open(file.stream).convert('RGB')
+    img_np = np.array(img)
+    img_cv = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
+
+    # Apply deblurring
+    deblurred_image = deblur_image(img_cv, blur_type)
+
+    # Convert result back to PIL for sending as response
+    img_pil = Image.fromarray(cv2.cvtColor(deblurred_image, cv2.COLOR_BGR2RGB))
+    img_io = BytesIO()
+    img_pil.save(img_io, 'PNG')
+    img_io.seek(0)
+
+    return send_file(img_io, mimetype='image/png')
+
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=5000, debug=True)
