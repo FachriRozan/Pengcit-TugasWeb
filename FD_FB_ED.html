@@ -234,7 +234,7 @@
                 <li><a href="#" class="nav-link" data-page="face-blurring">Face Blur</a></li>
                 <li><a href="#" class="nav-link" data-page="edge-detection">Edge Detection</a></li>
                 <li><a href="#" class="nav-link" data-page="segmentation">Image Segmentation</a></li>
-                <li><a href="#" class="nav-link" data-page="kasus1">Kasus 1</a></li>
+                <li><a href="#" class="nav-link" data-page="kasus1">Image Dithering</a></li>
                 <li><a href="#" class="nav-link" data-page="kasus2">Kasus 2</a></li>
                 <li><a href="#" class="nav-link" data-page="kasus3">Kasus 3</a></li>
             </ul>
@@ -399,14 +399,14 @@
                     </div>
                 </div>
             </div>
-            <!-- Kasus 1 Page -->
+            <!-- Image Dithering Page -->
             <div id="kasus1" class="page">
                 <div class="header">
-                    <div class="title">Kasus 1</div>
+                    <div class="title">Image Dithering</div>
                 </div>
                 <div class="main">
                     <div class="upload-area">
-                        <p>Upload your image for Kasus 1</p>
+                        <p>Upload your image for Image Dithering</p>
                         <div class="controls">
                             <input type="file" id="kasus1Upload" accept="image/*" style="display: none;">
                             <label for="kasus1Upload" class="upload-btn">Choose File</label>
@@ -699,6 +699,36 @@
                     .catch(error => {
                         console.error('Error occurred during image segmentation:', error);
                     });
+            } else {
+                alert('Please select an image first.');
+            }
+        });
+        //image dithering
+        document.getElementById('uploadKasus1Button').addEventListener('click', function () {
+            var file = document.getElementById('kasus1Upload').files[0];
+    
+            if (file) {
+                var formData = new FormData();
+                formData.append('image', file);
+    
+                fetch('http://127.0.0.1:5000/api/dither', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok ' + response.statusText);
+                    }
+                    return response.blob(); // Mengambil hasil sebagai blob
+                })
+                .then(blob => {
+                    var url = URL.createObjectURL(blob); // Membuat URL untuk blob
+                    document.getElementById('originalKasus1').innerHTML = `<img src="${URL.createObjectURL(file)}" alt="Original Image">`;
+                    document.getElementById('processedKasus1').innerHTML = `<img src="${url}" alt="Processed Image">`;
+                })
+                .catch(error => {
+                    console.error('There has been a problem with your fetch operation:', error);
+                });
             } else {
                 alert('Please select an image first.');
             }

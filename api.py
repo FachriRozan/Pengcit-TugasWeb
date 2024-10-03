@@ -7,16 +7,50 @@ import numpy as np
 import io
 import torchvision.transforms as T
 import cv2
+import matplotlib
 import matplotlib.pyplot as plt
 from io import BytesIO
 
 # Inisialisasi Flask app
+matplotlib.use('Agg')
 app = Flask(__name__)
 CORS(app)  # Izinkan semua asal untuk semua endpoint
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
 
 # Load model DeepLabV3 yang sudah dilatih
 SegModel = models.segmentation.deeplabv3_resnet101(pretrained=True).eval()
+
+
+def dithering(image):
+    """Apply dithering to an RGB image."""
+    # Convert image to numpy array
+    img = np.array(image)
+    h, w, _ = img.shape
+
+    # Convert to grayscale for dithering
+    gray_img = img.mean(axis=2)
+
+    # Floyd-Steinberg dithering algorithm
+    for y in range(h):
+        for x in range(w):
+            old_pixel = gray_img[y][x]
+            new_pixel = 255 * (old_pixel > 127)  # Thresholding
+            gray_img[y][x] = new_pixel
+            quant_error = old_pixel - new_pixel
+            
+            if x < w - 1:  # Error diffusion to the right pixel
+                gray_img[y][x + 1] += quant_error * 7 / 16
+            if x > 0 and y < h - 1:  # Error diffusion to the bottom-left pixel
+                gray_img[y + 1][x - 1] += quant_error * 3 / 16
+            if y < h - 1:  # Error diffusion to the bottom pixel
+                gray_img[y + 1][x] += quant_error * 5 / 16
+            if x < w - 1 and y < h - 1:  # Error diffusion to the bottom-right pixel
+                gray_img[y + 1][x + 1] += quant_error * 1 / 16
+
+    # Create a new image from the dithered grayscale
+    dithered_img = Image.fromarray(np.uint8(gray_img))
+
+    return dithered_img
 
 # Fungsi untuk decode hasil segmentasi menjadi gambar RGB
 def decode_segmap(image, nc=21):
@@ -42,7 +76,7 @@ def decode_segmap(image, nc=21):
 # Fungsi untuk melakukan segmentasi gambar
 def segment_image(image):
     # Transformasi gambar sesuai model DeepLabV3
-    trf = T.Compose([T.Resize(256),
+    trf = T.Compose([T.Resize(128),
                      T.CenterCrop(224),
                      T.ToTensor(),
                      T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
@@ -274,6 +308,20 @@ def grayscale_histogram():
     hist_buf = calculate_grayscale_histogram(img_np)
 
     return send_file(hist_buf, mimetype='image/png')
+#Adither
+@app.route('/api/dither', methods=['POST'])
+def dither():
+    file = request.files['image']
+    img = Image.open(file.stream).convert('RGB')
 
+    # Apply dithering
+    dithered_img = dithering(img)
+
+    # Convert result back to buffer for response
+    img_io = BytesIO()
+    dithered_img.save(img_io, 'PNG')
+    img_io.seek(0)
+
+    return send_file(img_io, mimetype='image/png')
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=5000, debug=True)
