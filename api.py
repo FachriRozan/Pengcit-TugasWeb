@@ -14,7 +14,9 @@ from io import BytesIO
 # Inisialisasi Flask app
 matplotlib.use('Agg')
 app = Flask(__name__)
-CORS(app)  # Izinkan semua asal untuk semua endpoint
+CORS(app)
+CORS(app, resources={r"/*": {"origins": "http://127.0.0.1:5500"}})
+# Izinkan semua asal untuk semua endpoint
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
 
 # Load model DeepLabV3 yang sudah dilatih
@@ -162,6 +164,8 @@ def apply_edge_detection(image, method):
     return edges
 
 # Histogram functions
+
+# Histogram functions
 def calculate_rgb_histogram(image):
     chans = cv2.split(image)
     colors = ("b", "g", "r")
@@ -204,7 +208,30 @@ def equalize_image(image, mode='RGB'):
         return cv2.merge(equalized_chans)
     else:  # Grayscale
         return cv2.equalizeHist(image)
+    if mode == 'RGB':
+        chans = cv2.split(image)
+        equalized_chans = [cv2.equalizeHist(chan) for chan in chans]
+        return cv2.merge(equalized_chans)
+    else:  # Grayscale
+        return cv2.equalizeHist(image)
 
+#edge detection
+
+def apply_edge_detection(image, method):
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    if method == 'canny':
+        edges = cv2.Canny(gray, 100, 200)
+    elif method == 'sobel':
+        edges = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=5) + cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=5)
+    elif method == 'prewitt':
+        kernelx = np.array([[1, 0, -1], [1, 0, -1], [1, 0, -1]])
+        kernely = np.array([[1, 1, 1], [0, 0, 0], [-1, -1, -1]])
+        edges = cv2.filter2D(gray, -1, kernelx) + cv2.filter2D(gray, -1, kernely)
+    elif method == 'laplacian':
+        edges = cv2.Laplacian(gray, cv2.CV_64F)
+    else:
+        raise ValueError("Unsupported edge detection method")
+    return edges
 # API for image segmentation
 @app.route('/segment', methods=['POST'])
 def segment():
@@ -282,62 +309,112 @@ def face_effect():
     return send_file(img_io, mimetype='image/png')
 
 # API for edge detection
+# API for edge detection
 @app.route('/api/edge-detection', methods=['POST'])
 def edge_detection():
     file = request.files['image']
-    edge_method = request.form.get('edge_method', 'canny')  # Get edge method from form data, default to 'canny'
-
+    method = request.form.get('method', 'canny')  # Dapatkan metode dari request
+    
     img = Image.open(file.stream).convert('RGB')
     img_np = np.array(img)
     img_cv = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
 
-    # Apply edge detection
-    edges = apply_edge_detection(img_cv, edge_method)
+    # Terapkan metode edge detection yang dipilih
+    edges = apply_edge_detection(img_cv, method)
 
-    # Convert result back to PIL for sending as response
-    img_pil = Image.fromarray(edges)
+    # Convert hasil edge detection kembali ke gambar
+    edges_image = Image.fromarray(np.uint8(edges))
+
+    # Siapkan untuk dikirim kembali sebagai respons
     img_io = BytesIO()
-    img_pil.save(img_io, 'PNG')
+    edges_image.save(img_io, 'PNG')
     img_io.seek(0)
 
     return send_file(img_io, mimetype='image/png')
 
-# API for RGB histogram
-@app.route('/histogram/original', methods=['POST'])
-def original_histogram():
+# Histogram equalization
+
+@app.route('/rgb/histogram/original', methods=['POST'])
+def rgb_original_histogram():
     file = request.files['image']
     img = Image.open(file.stream).convert('RGB')
     img_np = np.array(img)
+    img_cv = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
 
-    # Calculate RGB histogram
-    hist_buf = calculate_rgb_histogram(img_np)
+    img_buf = calculate_rgb_histogram(img_cv)
+    return send_file(img_buf, mimetype='image/png')
 
-    return send_file(hist_buf, mimetype='image/png')
-
-# API for equalized histogram
-@app.route('/histogram/equalized', methods=['POST'])
-def equalized_histogram():
+@app.route('/rgb/histogram/equalized', methods=['POST'])
+def rgb_equalized_histogram():
     file = request.files['image']
     img = Image.open(file.stream).convert('RGB')
     img_np = np.array(img)
+    img_cv = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
 
-    # Perform histogram equalization
-    equalized_image = equalize_image(img_np, mode='RGB')
-    hist_buf = calculate_rgb_histogram(equalized_image)
+    equalized_img = equalize_image(img_cv, 'RGB')
+    img_buf = calculate_rgb_histogram(equalized_img)
+    return send_file(img_buf, mimetype='image/png')
 
-    return send_file(hist_buf, mimetype='image/png')
-
-# API for grayscale image and its histogram
-@app.route('/histogram/grayscale', methods=['POST'])
-def grayscale_histogram():
+@app.route('/rgb/image/equalized', methods=['POST'])
+def rgb_equalized_image():
     file = request.files['image']
-    img = Image.open(file.stream).convert('L')  # Convert to grayscale
+    img = Image.open(file.stream).convert('RGB')
+    img_np = np.array(img)
+    img_cv = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
+
+    equalized_img = equalize_image(img_cv, 'RGB')
+    img_pil = Image.fromarray(cv2.cvtColor(equalized_img, cv2.COLOR_BGR2RGB))
+    
+    img_io = BytesIO()
+    img_pil.save(img_io, 'PNG')
+    img_io.seek(0)
+    return send_file(img_io, mimetype='image/png')
+
+@app.route('/greyscale/histogram/original', methods=['POST'])
+def grayscale_original_histogram():
+    file = request.files['image']
+    img = Image.open(file.stream).convert('L')
     img_np = np.array(img)
 
-    # Calculate grayscale histogram
-    hist_buf = calculate_grayscale_histogram(img_np)
+    img_buf = calculate_grayscale_histogram(img_np)
+    return send_file(img_buf, mimetype='image/png')
 
-    return send_file(hist_buf, mimetype='image/png')
+@app.route('/greyscale/histogram/equalized', methods=['POST'])
+def grayscale_equalized_histogram():
+    file = request.files['image']
+    img = Image.open(file.stream).convert('L')
+    img_np = np.array(img)
+
+    equalized_img = equalize_image(img_np, 'Grayscale')
+    img_buf = calculate_grayscale_histogram(equalized_img)
+    return send_file(img_buf, mimetype='image/png')
+
+@app.route('/greyscale/image/equalized', methods=['POST'])
+def grayscale_equalized_image():
+    file = request.files['image']
+    img = Image.open(file.stream).convert('L')
+    img_np = np.array(img)
+
+    equalized_img = equalize_image(img_np, 'Grayscale')
+    img_pil = Image.fromarray(equalized_img)
+    
+    img_io = BytesIO()
+    img_pil.save(img_io, 'PNG')
+    img_io.seek(0)
+    return send_file(img_io, mimetype='image/png')
+@app.route('/greyscale/image/original', methods=['POST'])
+def grayscale_original_image():
+    file = request.files['image']
+    img = Image.open(file.stream).convert('L')  # Mengubah gambar ke mode grayscale
+    img_np = np.array(img)
+    
+    # Simpan gambar grayscale ke dalam BytesIO buffer
+    img_io = BytesIO()
+    img_pil = Image.fromarray(img_np)
+    img_pil.save(img_io, 'PNG')
+    img_io.seek(0)
+    return send_file(img_io, mimetype='image/png')
+    
 #Adither
 @app.route('/api/dither', methods=['POST'])
 def dither():

@@ -261,7 +261,7 @@
                     <div class="image-container">
                         <div class="image-box">
                             <h3>Original Image</h3>
-                            <div id="originalHistogram" class="image-content"></div>
+                            <div id="originalImage" class="image-content"></div>
                         </div>
                         <div class="image-box">
                             <h3>Original Histogram</h3>
@@ -269,7 +269,7 @@
                         </div>
                         <div class="image-box">
                             <h3>Equalized Image</h3>
-                            <div id="equalizedHistogram" class="image-content"></div>
+                            <div id="equalizedImage" class="image-content"></div>
                         </div>
                         <div class="image-box">
                             <h3>Equalized Histogram</h3>
@@ -351,8 +351,6 @@
                                 <option value="sobel">Sobel</option>
                                 <option value="prewitt">Prewitt</option>
                                 <option value="laplacian">Laplacian</option>
-                                <option value="roberts">Roberts Cross</option>
-                                <option value="scharr">Scharr</option>
                             </select>
                             <button id="uploadEdgeButton" class="action-btn">Detect Edges</button>
                         </div>
@@ -499,66 +497,74 @@
             });
         });
 
-        // Histogram Analyzer
-        document.getElementById('uploadHistogramButton').addEventListener('click', function () {
-            var file = document.getElementById('imageUpload').files[0];
-            var mode = document.getElementById('filterMode').value;
+      // Histogram Analyzer
+      document.getElementById('uploadHistogramButton').addEventListener('click', function() {
+        var file = document.getElementById('imageUpload').files[0];
+        var mode = document.getElementById('filterMode').value;
 
-            if (file) {
-                var formData = new FormData();
-                formData.append('image', file);
+        if (file) {
+            var formData = new FormData();
+            formData.append('image', file);
 
-                var reader = new FileReader();
-
-                reader.onload = function (e) {
-                    document.getElementById('originalHistogram').innerHTML = `<img src="${e.target.result}" alt="Original Image">`;
+            var reader = new FileReader();
+            
+            if (mode === 'GrayScale') {
+                // Kirim gambar ke endpoint untuk mengubahnya menjadi grayscale
+                fetch('http://127.0.0.1:5000/greyscale/image/original', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.blob())
+                .then(blob => {
+                    var url = URL.createObjectURL(blob);
+                    document.getElementById('originalImage').innerHTML = `<img src="${url}" alt="Original Grayscale Image">`;
+                });
+            } else {
+                // Jika mode adalah RGB, tampilkan gambar yang diupload
+                reader.onload = function(e) {
+                    document.getElementById('originalImage').innerHTML = `<img src="${e.target.result}" alt="Original">`;
                 };
                 reader.readAsDataURL(file);
-
-                var histogramOriginalEndpoint = mode === 'RGB' ? 'http://127.0.0.1:5000/histogram/original' : 'http://127.0.0.1:5000/histogram/grayscale';
-                var imageEqualizedEndpoint = mode === 'RGB' ? 'http://127.0.0.1:5000/histogram/equalized' : 'http://127.0.0.1:5000/histogram/equalized-grayscale';
-                var histogramEqualizedEndpoint = mode === 'RGB' ? 'http://127.0.0.1:5000/histogram/equalized-histogram' : 'http://127.0.0.1:5000/histogram/equalized-histogram-grayscale';
-
-                fetch(histogramOriginalEndpoint, {
-                    method: 'POST',
-                    body: formData
-                })
-                    .then(response => response.blob())
-                    .then(blob => {
-                        document.getElementById('histogramOriginal').innerHTML = `<img src="${URL.createObjectURL(blob)}" alt="Original Histogram">`;
-                    })
-                    .catch(error => {
-                        console.error('Error occurred while fetching original histogram:', error);
-                    });
-
-                fetch(imageEqualizedEndpoint, {
-                    method: 'POST',
-                    body: formData
-                })
-                    .then(response => response.blob())
-                    .then(blob => {
-                        document.getElementById('equalizedHistogram').innerHTML = `<img src="${URL.createObjectURL(blob)}" alt="Equalized Image">`;
-                    })
-                    .catch(error => {
-                        console.error('Error occurred while fetching equalized image:', error);
-                    });
-
-                fetch(histogramEqualizedEndpoint, {
-                    method: 'POST',
-                    body: formData
-                })
-                    .then(response => response.blob())
-                    .then(blob => {
-                        document.getElementById('histogramEqualized').innerHTML = `<img src="${URL.createObjectURL(blob)}" alt="Equalized Histogram">`;
-                    })
-                    .catch(error => {
-                        console.error('Error occurred while fetching equalized histogram:', error);
-                    });
-
-            } else {
-                alert('Please select an image first.');
             }
-        });
+
+            // Menentukan endpoint API
+            var histogramOriginalEndpoint = mode === 'RGB' ? 'http://127.0.0.1:5000/rgb/histogram/original' : 'http://127.0.0.1:5000/greyscale/histogram/original';
+            var imageEqualizedEndpoint = mode === 'RGB' ? 'http://127.0.0.1:5000/rgb/image/equalized' : 'http://127.0.0.1:5000/greyscale/image/equalized';
+            var histogramEqualizedEndpoint = mode === 'RGB' ? 'http://127.0.0.1:5000/rgb/histogram/equalized' : 'http://127.0.0.1:5000/greyscale/histogram/equalized';
+
+            // Kirim data ke API
+            fetch(histogramOriginalEndpoint, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.blob())
+            .then(blob => {
+                document.getElementById('histogramOriginal').innerHTML = `<img src="${URL.createObjectURL(blob)}" alt="Original Histogram">`;
+            });
+
+            fetch(imageEqualizedEndpoint, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.blob())
+            .then(blob => {
+                document.getElementById('equalizedImage').innerHTML = `<img src="${URL.createObjectURL(blob)}" alt="Equalized Image">`;
+            });
+
+            fetch(histogramEqualizedEndpoint, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.blob())
+            .then(blob => {
+                document.getElementById('histogramEqualized').innerHTML = `<img src="${URL.createObjectURL(blob)}" alt="Equalized Histogram">`;
+            });
+
+        } else {
+            alert('Please select an image first.');
+        }
+    });
+
 
         // Face Detection
         document.getElementById('uploadFaceDetectionButton').addEventListener('click', function () {
@@ -637,37 +643,39 @@
         }
 
         // Edge Detection
-        document.getElementById('uploadEdgeButton').addEventListener('click', function () {
+        document.getElementById('uploadEdgeButton').addEventListener('click', function() {
             var file = document.getElementById('edgeDetectionUpload').files[0];
-            var method = document.getElementById('edgeMethod').value;
-
+            var method = document.getElementById('edgeMethod').value;  // Get selected method
+        
             if (file) {
                 var reader = new FileReader();
-                reader.onload = function (e) {
+                reader.onload = function(e) {
                     document.getElementById('originalEdge').innerHTML = `<img src="${e.target.result}" alt="Original Image">`;
                 };
                 reader.readAsDataURL(file);
-
+        
                 var formData = new FormData();
                 formData.append('image', file);
-                formData.append('method', method);
-
+                formData.append('method', method);  // Append selected method to form data
+        
                 fetch('http://127.0.0.1:5000/api/edge-detection', {
                     method: 'POST',
                     body: formData
                 })
-                    .then(response => response.blob())
-                    .then(blob => {
-                        var url = URL.createObjectURL(blob);
-                        document.getElementById('edgeDetectedImage').innerHTML = `<img src="${url}" alt="Edge Detected Image">`;
-                    })
-                    .catch(error => {
-                        console.error('Error occurred during edge detection:', error);
-                    });
+                .then(response => response.blob())
+                .then(blob => {
+                    var url = URL.createObjectURL(blob);
+                    document.getElementById('edgeDetectedImage').innerHTML = `<img src="${url}" alt="Edge Detected Image">`;
+                    alert('Edge detection completed.');
+                })
+                .catch(error => {
+                    alert('Error occurred during edge detection: ' + error);
+                });
             } else {
                 alert('Please select an image first.');
             }
         });
+        
 
         // Image Segmentation
         document.getElementById('segmentationUpload').addEventListener('change', function (e) {
