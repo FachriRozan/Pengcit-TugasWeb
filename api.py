@@ -59,30 +59,35 @@ def dithering(image):
 
     return dithered_img
 
-# Image Deblurring 
-def deblur_image(image, blur_type):
-    if blur_type == 'motion':
-        kernel = np.zeros((15, 15))
-        kernel[int((15 - 1) / 2), :] = np.ones(15)
-        kernel = kernel / 15
-    elif blur_type == 'linear_motion':
-        kernel = np.zeros((15, 15))
-        kernel[:, int((15 - 1) / 2)] = np.ones(15)
-        kernel = kernel / 15
-    elif blur_type == 'gaussian':
-        kernel = cv2.getGaussianKernel(15, 0)
-        kernel = kernel * kernel.T
-    elif blur_type == 'defocus':
-        kernel = np.zeros((15, 15))
-        cv2.circle(kernel, (int(15 / 2), int(15 / 2)), 7, 1, -1)
-        kernel = kernel / np.sum(kernel)
-    elif blur_type == 'atmospheric':
-        kernel = np.ones((15, 15)) / (15 * 15)
-    else:
-        raise ValueError("Unsupported blur type")
+# Miniature Effect 
+def apply_miniature_effect(image):
+    # Pastikan image adalah dalam format BGR untuk OpenCV
+    # OpenCV expects BGR, while PIL is RGB
+    img_bgr = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
 
-    deblurred = cv2.filter2D(image, -1, kernel)
-    return deblurred
+    # Definisikan area fokus (tengah gambar)
+    height, width = img_bgr.shape[:2]
+    focus_start = int(height * 0.3)
+    focus_end = int(height * 0.7)
+
+    # Buat mask untuk area fokus
+    mask = np.zeros_like(img_bgr, dtype=np.uint8)
+    mask[focus_start:focus_end, :] = img_bgr[focus_start:focus_end, :]
+
+    # Terapkan Gaussian blur ke seluruh gambar
+    blurred_image = cv2.GaussianBlur(img_bgr, (15, 15), 0)
+
+    # Gabungkan area fokus dengan latar belakang blur
+    result = blurred_image
+    result[focus_start:focus_end, :] = mask[focus_start:focus_end, :]
+
+    # Tingkatkan saturasi untuk efek 'miniatur'
+    img_hsv = cv2.cvtColor(result, cv2.COLOR_BGR2HSV)
+    img_hsv[:, :, 1] = cv2.add(img_hsv[:, :, 1], 50)  # Tingkatkan saturasi
+    final_img = cv2.cvtColor(img_hsv, cv2.COLOR_HSV2BGR)  # Pastikan kembali ke BGR untuk penyimpanan
+
+    # Kembalikan ke format RGB untuk digunakan lebih lanjut
+    return cv2.cvtColor(final_img, cv2.COLOR_BGR2RGB)
 
 # Fungsi untuk decode hasil segmentasi menjadi gambar RGB
 def decode_segmap(image, nc=21):
@@ -449,26 +454,26 @@ def image_inversion():
 
     return send_file(img_io, mimetype='image/png')
 
-# API for Image Deblurring
-@app.route('/api/deblur', methods=['POST'])
-def deblur():
-    file = request.files['image']
-    blur_type = request.form.get('blur_type', 'motion')  # Get blur type from form data, default to 'motion'
+# API for Miniature Effect
+@app.route("/api/miniature-effect", methods=['POST'])
+def index():
+    if request.method == "POST":
+        file = request.files["image"]
+        img = Image.open(file).convert("RGB")  # Pastikan kita menggunakan format RGB
+        img_cv = np.array(img)
 
-    img = Image.open(file.stream).convert('RGB')
-    img_np = np.array(img)
-    img_cv = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
+        # Terapkan efek miniatur
+        miniature_img = apply_miniature_effect(img_cv)
 
-    # Apply deblurring
-    deblurred_image = deblur_image(img_cv, blur_type)
+        # Konversi ke Image untuk respons Flask
+        result_image = Image.fromarray(miniature_img)
+        byte_io = BytesIO()
+        result_image.save(byte_io, 'PNG')
+        byte_io.seek(0)
 
-    # Convert result back to PIL for sending as response
-    img_pil = Image.fromarray(cv2.cvtColor(deblurred_image, cv2.COLOR_BGR2RGB))
-    img_io = BytesIO()
-    img_pil.save(img_io, 'PNG')
-    img_io.seek(0)
+        return send_file(byte_io, mimetype="image/png")
 
-    return send_file(img_io, mimetype='image/png')
+    return render_template("index.html")
 
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=5000, debug=True)
