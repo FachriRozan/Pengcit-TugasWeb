@@ -1,584 +1,636 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Image Processing Dashboard</title>
-    <style>
-      /* Existing styles */
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
+  <!DOCTYPE html>
+  <html lang="en">
+    <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Image Processing Dashboard</title>
+      <style>
+        /* Existing styles */
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
 
-      body {
-        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-        background-color: #f0f4f8;
-        color: #333;
-      }
+        body {
+          font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+          background-color: #f0f4f8;
+          color: #333;
+        }
 
-      .container {
-        display: flex;
-        min-height: 100vh;
-      }
+        .container {
+          display: flex;
+          min-height: 100vh;
+        }
 
-      .navbar {
-        width: 250px;
-        background-color: #2c3e50;
-        color: white;
-        padding: 20px;
-      }
+        .navbar {
+          width: 250px;
+          background-color: #2c3e50;
+          color: white;
+          padding: 20px;
+        }
 
-      .navbar ul {
-        list-style-type: none;
-        padding: 0;
-      }
+        .navbar ul {
+          list-style-type: none;
+          padding: 0;
+        }
 
-      .navbar ul li {
-        margin-bottom: 10px;
-      }
+        .navbar ul li {
+          margin-bottom: 10px;
+        }
 
-      .navbar ul li a {
-        color: white;
-        text-decoration: none;
-        font-size: 18px;
-        display: block;
-        padding: 10px;
-        border-radius: 5px;
-        transition: background-color 0.3s, color 0.3s;
-      }
+        .navbar ul li a {
+          color: white;
+          text-decoration: none;
+          font-size: 18px;
+          display: block;
+          padding: 10px;
+          border-radius: 5px;
+          transition: background-color 0.3s, color 0.3s;
+        }
 
-      .navbar ul li a:hover,
-      .navbar ul li a.active {
-        background-color: #34495e;
-        color: #3498db;
-      }
+        .navbar ul li a:hover,
+        .navbar ul li a.active {
+          background-color: #34495e;
+          color: #3498db;
+        }
 
-      .content {
-        flex-grow: 1;
-        padding: 20px;
-        overflow-y: auto;
-      }
+        .content {
+          flex-grow: 1;
+          padding: 20px;
+          overflow-y: auto;
+        }
 
-      .page {
-        display: none;
-      }
+        .page {
+          display: none;
+        }
 
-      .page.active {
-        display: block;
-      }
+        .page.active {
+          display: block;
+        }
 
-      .header {
-        padding: 30px;
-        background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
-        color: white;
-        text-align: center;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        margin-bottom: 30px;
-        border-radius: 10px;
-      }
+        .header {
+          padding: 30px;
+          background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+          color: white;
+          text-align: center;
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+          margin-bottom: 30px;
+          border-radius: 10px;
+        }
 
-      .title {
-        font-size: 32px;
-        font-weight: bold;
-        letter-spacing: 1px;
-      }
+        .title {
+          font-size: 32px;
+          font-weight: bold;
+          letter-spacing: 1px;
+        }
 
-      .main {
-        background-color: #ffffff;
-        border-radius: 10px;
-        padding: 30px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-      }
+        .main {
+          background-color: #ffffff;
+          border-radius: 10px;
+          padding: 30px;
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
 
-      .upload-area {
-        background-color: #e6f3f7;
-        border-radius: 10px;
-        padding: 30px;
-        text-align: center;
-        margin-bottom: 30px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-      }
+        .upload-area {
+          background-color: #e6f3f7;
+          border-radius: 10px;
+          padding: 30px;
+          text-align: center;
+          margin-bottom: 30px;
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
 
-      .upload-area h3 {
-        margin-bottom: 10px;
-        color: #2c3e50;
-        font-size: 24px;
-      }
+        .upload-area h3 {
+          margin-bottom: 10px;
+          color: #2c3e50;
+          font-size: 24px;
+        }
 
-      .upload-controls {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: center;
-        align-items: center;
-        gap: 20px;
-        margin-top: 20px;
-      }
+        .upload-controls {
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: center;
+          align-items: center;
+          gap: 20px;
+          margin-top: 20px;
+        }
 
-      .file-input-wrapper {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
+        .file-input-wrapper {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
 
-      .upload-btn,
-      .action-btn {
-        display: inline-block;
-        padding: 12px 24px;
-        background-color: #3498db;
-        color: white;
-        border-radius: 5px;
-        cursor: pointer;
-        transition: background-color 0.3s ease;
-        border: none;
-        font-size: 16px;
-      }
+        .upload-btn,
+        .action-btn {
+          display: inline-block;
+          padding: 12px 24px;
+          background-color: #3498db;
+          color: white;
+          border-radius: 5px;
+          cursor: pointer;
+          transition: background-color 0.3s ease;
+          border: none;
+          font-size: 16px;
+        }
 
-      .upload-btn:hover,
-      .action-btn:hover {
-        background-color: #2980b9;
-      }
+        .upload-btn:hover,
+        .action-btn:hover {
+          background-color: #2980b9;
+        }
 
-      #file-name {
-        font-style: italic;
-        color: #7f8c8d;
-      }
+        #file-name {
+          font-style: italic;
+          color: #7f8c8d;
+        }
 
-      .cluster-input {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
+        .cluster-input {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
 
-      .cluster-input label {
-        font-weight: bold;
-        color: #2c3e50;
-      }
+        .cluster-input label {
+          font-weight: bold;
+          color: #2c3e50;
+        }
 
-      select,
-      input[type="range"],
-      input[type="number"] {
-        padding: 10px;
-        margin: 10px;
-        border-radius: 5px;
-        border: 1px solid #3498db;
-      }
+        select,
+        input[type="range"],
+        input[type="number"] {
+          padding: 10px;
+          margin: 10px;
+          border-radius: 5px;
+          border: 1px solid #3498db;
+        }
 
-      .image-container {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 30px;
-        justify-content: space-between;
-      }
+        .image-container {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 30px;
+          justify-content: space-between;
+        }
 
-      .image-box {
-        flex: 1 1 calc(50% - 15px);
-        min-width: 300px;
-        background-color: #f9f9f9;
-        border-radius: 10px;
-        overflow: hidden;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        margin-bottom: 30px;
-        transition: transform 0.3s ease;
-      }
+        .image-box {
+          flex: 1 1 calc(50% - 15px);
+          min-width: 300px;
+          background-color: #f9f9f9;
+          border-radius: 10px;
+          overflow: hidden;
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+          margin-bottom: 30px;
+          transition: transform 0.3s ease;
+        }
 
-      .image-box:hover {
-        transform: translateY(-5px);
-      }
+        .image-box:hover {
+          transform: translateY(-5px);
+        }
 
-      .image-box h3 {
-        padding: 15px;
-        background-color: #3498db;
-        color: white;
-        font-size: 18px;
-        text-align: center;
-      }
+        .image-box h3 {
+          padding: 15px;
+          background-color: #3498db;
+          color: white;
+          font-size: 18px;
+          text-align: center;
+        }
 
-      .image-content {
-        padding: 20px;
-      }
+        .image-content {
+          padding: 20px;
+        }
 
-      .image-content img {
-        width: 100%;
-        height: auto;
-        object-fit: contain;
-        border-radius: 5px;
-      }
+        .image-content img {
+          width: 100%;
+          height: auto;
+          object-fit: contain;
+          border-radius: 5px;
+        }
 
-      .blur-control {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-top: 10px;
-      }
+        .blur-control {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-top: 10px;
+        }
 
-      .blur-control input[type="range"] {
-        flex-grow: 1;
-      }
+        .blur-control input[type="range"] {
+          flex-grow: 1;
+        }
 
-      .blur-value {
-        min-width: 30px;
-        text-align: right;
-      }
-    </style>
-  </head>
+        .blur-value {
+          min-width: 30px;
+          text-align: right;
+        }
+      </style>
+    </head>
 
-  <body>
-    <div class="container">
-      <nav class="navbar">
-        <ul>
-          <li>
-            <a href="#" class="nav-link active" data-page="histogram"
-              >Histogram Analyzer</a
-            >
-          </li>
-          <li>
-            <a href="#" class="nav-link" data-page="face-detection"
-              >Face Detection</a
-            >
-          </li>
-          <li>
-            <a href="#" class="nav-link" data-page="face-blurring">Face Blur</a>
-          </li>
-          <li>
-            <a href="#" class="nav-link" data-page="edge-detection"
-              >Edge Detection</a
-            >
-          </li>
-          <li>
-            <a href="#" class="nav-link" data-page="segmentation"
-              >Image Segmentation</a
-            >
-          </li>
-          <li>
-            <a href="#" class="nav-link" data-page="kasus1">Image Dithering</a>
-          </li>
-          <li>
-            <a href="#" class="nav-link" data-page="inversion"
-              >Image Inversion</a
-            >
-          </li>
-          <li>
-            <a href="#" class="nav-link" data-page="miniature-effect"
-              >Miniature Effect</a
-            >
-          </li>
-        </ul>
-      </nav>
-      <div class="content">
-        <!-- Histogram Analyzer Page -->
-        <div id="histogram" class="page active">
-          <div class="header">
-            <div class="title">Histogram Analyzer</div>
-          </div>
-          <div class="main">
-            <div class="upload-area">
-              <p>Upload your image for histogram analysis</p>
-              <div class="controls">
-                <input
-                  type="file"
-                  id="imageUpload"
-                  accept="image/*"
-                  style="display: none"
-                />
-                <label for="imageUpload" class="upload-btn">Choose File</label>
-                <select id="filterMode" class="action-btn">
-                  <option value="RGB">RGB</option>
-                  <option value="GrayScale">GrayScale</option>
-                </select>
-                <button id="uploadHistogramButton" class="action-btn">
-                  Analyze
-                </button>
-              </div>
+    <body>
+      <div class="container">
+        <nav class="navbar">
+          <ul>
+            <li>
+              <a href="#" class="nav-link active" data-page="histogram"
+                >Histogram Analyzer</a
+              >
+            </li>
+            <li>
+              <a href="#" class="nav-link" data-page="face-detection"
+                >Face Detection</a
+              >
+            </li>
+            <li>
+              <a href="#" class="nav-link" data-page="face-blurring">Face Blur</a>
+            </li>
+            <li>
+              <a href="#" class="nav-link" data-page="edge-detection"
+                >Edge Detection</a
+              >
+            </li>
+            <li>
+              <a href="#" class="nav-link" data-page="segmentation"
+                >Image Segmentation</a
+              >
+            </li>
+            <li>
+              <a href="#" class="nav-link" data-page="kasus1">Image Dithering</a>
+            </li>
+            <li>
+              <a href="#" class="nav-link" data-page="inversion"
+                >Image Inversion</a
+              >
+            </li>
+            <li>
+              <a href="#" class="nav-link" data-page="miniature-effect"
+                >Miniature Effect</a
+              >
+            </li>
+            <li>
+              <a href="#" class="nav-link" data-page="morphology"
+                >Morphology</a
+              >
+            </li>
+          </ul>
+        </nav>
+        <div class="content">
+          <!-- Histogram Analyzer Page -->
+          <div id="histogram" class="page active">
+            <div class="header">
+              <div class="title">Histogram Analyzer</div>
             </div>
-            <div class="image-container">
-              <div class="image-box">
-                <h3>Original Image</h3>
-                <div id="originalHistogram" class="image-content"></div>
-              </div>
-              <div class="image-box">
-                <h3>Original Histogram</h3>
-                <div id="histogramOriginal" class="image-content"></div>
-              </div>
-              <div class="image-box">
-                <h3>Equalized Image</h3>
-                <div id="equalizedHistogram" class="image-content"></div>
-              </div>
-              <div class="image-box">
-                <h3>Equalized Histogram</h3>
-                <div id="histogramEqualized" class="image-content"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <!-- Face Detection Page -->
-        <div id="face-detection" class="page">
-          <div class="header">
-            <div class="title">Face Detection</div>
-          </div>
-          <div class="main">
-            <div class="upload-area">
-              <p>Upload your image for face detection</p>
-              <div class="controls">
-                <input
-                  type="file"
-                  id="faceDetectionUpload"
-                  accept="image/*"
-                  style="display: none"
-                />
-                <label for="faceDetectionUpload" class="upload-btn"
-                  >Choose File</label
-                >
-                <button id="uploadFaceDetectionButton" class="action-btn">
-                  Detect Faces
-                </button>
-              </div>
-            </div>
-            <div class="image-container">
-              <div class="image-box">
-                <h3>Original Image</h3>
-                <div id="originalFaceDetection" class="image-content"></div>
-              </div>
-              <div class="image-box">
-                <h3>Face Detected Image</h3>
-                <div id="faceDetectedImage" class="image-content"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <!-- Face Blurring Page -->
-        <div id="face-blurring" class="page">
-          <div class="header">
-            <div class="title">Face Blur</div>
-          </div>
-          <div class="main">
-            <div class="upload-area">
-              <p>Upload your image for face blurring</p>
-              <div class="controls">
-                <input
-                  type="file"
-                  id="faceBlurUpload"
-                  accept="image/*"
-                  style="display: none"
-                />
-                <label for="faceBlurUpload" class="upload-btn"
-                  >Choose File</label
-                >
-                <div class="blur-control">
-                  <span>Effect Value:</span>
-                  <input
-                    type="range"
-                    id="effectValue"
-                    min="0"
-                    max="100"
-                    value="50"
-                  />
-                  <span id="effectValueDisplay" class="blur-value">50</span>
-                </div>
-                <button id="blurFaceButton" class="action-btn">
-                  Blur Face
-                </button>
-              </div>
-            </div>
-            <div class="image-container">
-              <div class="image-box">
-                <h3>Original Image</h3>
-                <div id="originalBlur" class="image-content"></div>
-              </div>
-              <div class="image-box">
-                <h3>Blurred Image</h3>
-                <div id="processedImage" class="image-content"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <!-- Edge Detection Page -->
-        <div id="edge-detection" class="page">
-          <div class="header">
-            <div class="title">Edge Detection</div>
-          </div>
-          <div class="main">
-            <div class="upload-area">
-              <p>Upload your image for edge detection</p>
-              <div class="controls">
-                <input
-                  type="file"
-                  id="edgeDetectionUpload"
-                  accept="image/*"
-                  style="display: none"
-                />
-                <label for="edgeDetectionUpload" class="upload-btn"
-                  >Choose File</label
-                >
-                <select id="edgeMethod" class="action-btn">
-                  <option value="canny">Canny</option>
-                  <option value="sobel">Sobel</option>
-                  <option value="prewitt">Prewitt</option>
-                  <option value="laplacian">Laplacian</option>
-                  <option value="roberts">Roberts Cross</option>
-                  <option value="scharr">Scharr</option>
-                </select>
-                <button id="uploadEdgeButton" class="action-btn">
-                  Detect Edges
-                </button>
-              </div>
-            </div>
-            <div class="image-container">
-              <div class="image-box">
-                <h3>Original Image</h3>
-                <div id="originalEdge" class="image-content"></div>
-              </div>
-              <div class="image-box">
-                <h3>Edge Detected Image</h3>
-                <div id="edgeDetectedImage" class="image-content"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <!-- Image Segmentation Page -->
-        <div id="segmentation" class="page">
-          <div class="header">
-            <div class="title">Image Segmentation</div>
-          </div>
-          <div class="main">
-            <div class="upload-area">
-              <h3>Image Segmentation</h3>
-              <p>Upload an image for semantic segmentation</p>
-              <div class="upload-controls">
-                <div class="file-input-wrapper">
+            <div class="main">
+              <div class="upload-area">
+                <p>Upload your image for histogram analysis</p>
+                <div class="controls">
                   <input
                     type="file"
-                    id="segmentationUpload"
+                    id="imageUpload"
                     accept="image/*"
                     style="display: none"
                   />
-                  <label for="segmentationUpload" class="upload-btn"
+                  <label for="imageUpload" class="upload-btn">Choose File</label>
+                  <select id="filterMode" class="action-btn">
+                    <option value="RGB">RGB</option>
+                    <option value="GrayScale">GrayScale</option>
+                  </select>
+                  <button id="uploadHistogramButton" class="action-btn">
+                    Analyze
+                  </button>
+                </div>
+              </div>
+              <div class="image-container">
+                <div class="image-box">
+                  <h3>Original Image</h3>
+                  <div id="originalHistogram" class="image-content"></div>
+                </div>
+                <div class="image-box">
+                  <h3>Original Histogram</h3>
+                  <div id="histogramOriginal" class="image-content"></div>
+                </div>
+                <div class="image-box">
+                  <h3>Equalized Image</h3>
+                  <div id="equalizedHistogram" class="image-content"></div>
+                </div>
+                <div class="image-box">
+                  <h3>Equalized Histogram</h3>
+                  <div id="histogramEqualized" class="image-content"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- Face Detection Page -->
+          <div id="face-detection" class="page">
+            <div class="header">
+              <div class="title">Face Detection</div>
+            </div>
+            <div class="main">
+              <div class="upload-area">
+                <p>Upload your image for face detection</p>
+                <div class="controls">
+                  <input
+                    type="file"
+                    id="faceDetectionUpload"
+                    accept="image/*"
+                    style="display: none"
+                  />
+                  <label for="faceDetectionUpload" class="upload-btn"
                     >Choose File</label
                   >
-                  <span id="file-name">No file chosen</span>
+                  <button id="uploadFaceDetectionButton" class="action-btn">
+                    Detect Faces
+                  </button>
                 </div>
-                <button id="uploadSegmentationButton" class="action-btn">
-                  Segment Image
-                </button>
               </div>
-            </div>
-            <div class="image-container">
-              <div class="image-box">
-                <h3>Original Image</h3>
-                <div id="originalSegmentation" class="image-content"></div>
-              </div>
-              <div class="image-box">
-                <h3>Segmented Image</h3>
-                <div id="segmentedImage" class="image-content"></div>
+              <div class="image-container">
+                <div class="image-box">
+                  <h3>Original Image</h3>
+                  <div id="originalFaceDetection" class="image-content"></div>
+                </div>
+                <div class="image-box">
+                  <h3>Face Detected Image</h3>
+                  <div id="faceDetectedImage" class="image-content"></div>
+                </div>
               </div>
             </div>
           </div>
+          <!-- Face Blurring Page -->
+          <div id="face-blurring" class="page">
+            <div class="header">
+              <div class="title">Face Blur</div>
+            </div>
+            <div class="main">
+              <div class="upload-area">
+                <p>Upload your image for face blurring</p>
+                <div class="controls">
+                  <input
+                    type="file"
+                    id="faceBlurUpload"
+                    accept="image/*"
+                    style="display: none"
+                  />
+                  <label for="faceBlurUpload" class="upload-btn"
+                    >Choose File</label
+                  >
+                  <div class="blur-control">
+                    <span>Effect Value:</span>
+                    <input
+                      type="range"
+                      id="effectValue"
+                      min="0"
+                      max="100"
+                      value="50"
+                    />
+                    <span id="effectValueDisplay" class="blur-value">50</span>
+                  </div>
+                  <button id="blurFaceButton" class="action-btn">
+                    Blur Face
+                  </button>
+                </div>
+              </div>
+              <div class="image-container">
+                <div class="image-box">
+                  <h3>Original Image</h3>
+                  <div id="originalBlur" class="image-content"></div>
+                </div>
+                <div class="image-box">
+                  <h3>Blurred Image</h3>
+                  <div id="processedImage" class="image-content"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- Edge Detection Page -->
+          <div id="edge-detection" class="page">
+            <div class="header">
+              <div class="title">Edge Detection</div>
+            </div>
+            <div class="main">
+              <div class="upload-area">
+                <p>Upload your image for edge detection</p>
+                <div class="controls">
+                  <input
+                    type="file"
+                    id="edgeDetectionUpload"
+                    accept="image/*"
+                    style="display: none"
+                  />
+                  <label for="edgeDetectionUpload" class="upload-btn"
+                    >Choose File</label
+                  >
+                  <select id="edgeMethod" class="action-btn">
+                    <option value="canny">Canny</option>
+                    <option value="sobel">Sobel</option>
+                    <option value="prewitt">Prewitt</option>
+                    <option value="laplacian">Laplacian</option>
+                    <option value="roberts">Roberts Cross</option>
+                    <option value="scharr">Scharr</option>
+                  </select>
+                  <button id="uploadEdgeButton" class="action-btn">
+                    Detect Edges
+                  </button>
+                </div>
+              </div>
+              <div class="image-container">
+                <div class="image-box">
+                  <h3>Original Image</h3>
+                  <div id="originalEdge" class="image-content"></div>
+                </div>
+                <div class="image-box">
+                  <h3>Edge Detected Image</h3>
+                  <div id="edgeDetectedImage" class="image-content"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- Image Segmentation Page -->
+          <div id="segmentation" class="page">
+            <div class="header">
+              <div class="title">Image Segmentation</div>
+            </div>
+            <div class="main">
+              <div class="upload-area">
+                <h3>Image Segmentation</h3>
+                <p>Upload an image for semantic segmentation</p>
+                <div class="upload-controls">
+                  <div class="file-input-wrapper">
+                    <input
+                      type="file"
+                      id="segmentationUpload"
+                      accept="image/*"
+                      style="display: none"
+                    />
+                    <label for="segmentationUpload" class="upload-btn"
+                      >Choose File</label
+                    >
+                    <span id="file-name">No file chosen</span>
+                  </div>
+                  <button id="uploadSegmentationButton" class="action-btn">
+                    Segment Image
+                  </button>
+                </div>
+              </div>
+              <div class="image-container">
+                <div class="image-box">
+                  <h3>Original Image</h3>
+                  <div id="originalSegmentation" class="image-content"></div>
+                </div>
+                <div class="image-box">
+                  <h3>Segmented Image</h3>
+                  <div id="segmentedImage" class="image-content"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- Image Dithering Page -->
+          <div id="kasus1" class="page">
+            <div class="header">
+              <div class="title">Image Dithering</div>
+            </div>
+            <div class="main">
+              <div class="upload-area">
+                <p>Upload your image for Image Dithering</p>
+                <div class="controls">
+                  <input
+                    type="file"
+                    id="kasus1Upload"
+                    accept="image/*"
+                    style="display: none"
+                  />
+                  <label for="kasus1Upload" class="upload-btn">Choose File</label>
+                  <button id="uploadKasus1Button" class="action-btn">
+                    Process Image
+                  </button>
+                </div>
+              </div>
+              <div class="image-container">
+                <div class="image-box">
+                  <h3>Original Image</h3>
+                  <div id="originalKasus1" class="image-content"></div>
+                </div>
+                <div class="image-box">
+                  <h3>Processed Image</h3>
+                  <div id="processedKasus1" class="image-content"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div id="inversion" class="page">
+            <div class="header">
+              <div class="title">Image Inversion</div>
+            </div>
+            <div class="main">
+              <div class="upload-area">
+                <p>Upload your image for inversion</p>
+                <div class="controls">
+                  <input
+                    type="file"
+                    id="inversionUpload"
+                    accept="image/*"
+                    style="display: none"
+                  />
+                  <label for="inversionUpload" class="upload-btn"
+                    >Choose File</label
+                  >
+                  <button id="uploadInversionButton" class="action-btn">
+                    Invert
+                  </button>
+                </div>
+              </div>
+              <div class="image-container">
+                <div class="image-box">
+                  <h3>Original Image</h3>
+                  <div id="originalInversion" class="image-content"></div>
+                </div>
+                <div class="image-box">
+                  <h3>Inverted Image</h3>
+                  <div id="invertedImage" class="image-content"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- Miniature Effect Page -->
+          <div id="miniature-effect" class="page">
+            <div class="header">
+              <div class="title">Miniature Effect</div>
+            </div>
+            <div class="main">
+              <div class="upload-area">
+                <p>Upload your image for miniature effect</p>
+                <div class="controls">
+                  <input
+                    type="file"
+                    id="miniatureEffectUpload"
+                    accept="image/*"
+                    style="display: none"
+                  />
+                  <label for="miniatureEffectUpload" class="upload-btn"
+                    >Choose File</label
+                  >
+                  <button id="uploadMiniatureEffectButton" class="action-btn">
+                    Apply Miniature Effect
+                  </button>
+                </div>
+              </div>
+              <div class="image-container">
+                <div class="image-box">
+                  <h3>Original Image</h3>
+                  <div id="originalMiniatureEffect" class="image-content"></div>
+                </div>
+                <div class="image-box">
+                  <h3>Miniature Effect Image</h3>
+                  <div id="miniatureEffectImage" class="image-content"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+           <!-- Morphology Page -->
+           <div id="morphology" class="page">
+            <div class="header">
+                <div class="title">Morphological Filters</div>
+            </div>
+            <div class="main">
+                <div class="upload-area">
+                    <h3>Apply Morphological Filters</h3>
+                    <p>Upload your image and choose a morphological filter</p>
+                    <div class="upload-controls">
+                        <div class="file-input-wrapper">
+                            <input
+                                type="file"
+                                id="morphologyUpload"
+                                accept="image/*"
+                                style="display: none"
+                            />
+                            <label for="morphologyUpload" class="upload-btn">Choose File</label>
+                            <span id="morphology-file-name">No file chosen</span>
+                        </div>
+                        <div>
+                            <label for="morphologyFilter">Choose Filter:</label>
+                            <select id="morphologyFilter" class="action-btn">
+                                <option value="dilation">Dilation</option>
+                                <option value="erosion">Erosion</option>
+                                <option value="opening">Opening</option>
+                                <option value="closing">Closing</option>
+                            </select>
+                        </div>
+                        <button id="uploadMorphologyButton" class="action-btn" type="button">
+                            Apply Filter
+                        </button>
+                    </div>
+                </div>
+                <div class="image-container">
+                    <div class="image-box">
+                        <h3>Original Image</h3>
+                        <div id="originalMorphology" class="image-content"></div>
+                    </div>
+                    <div class="image-box">
+                        <h3>Processed Image</h3>
+                        <div id="processedMorphology" class="image-content"></div>
+                    </div>
+                </div>
+            </div>
         </div>
-        <!-- Image Dithering Page -->
-        <div id="kasus1" class="page">
-          <div class="header">
-            <div class="title">Image Dithering</div>
-          </div>
-          <div class="main">
-            <div class="upload-area">
-              <p>Upload your image for Image Dithering</p>
-              <div class="controls">
-                <input
-                  type="file"
-                  id="kasus1Upload"
-                  accept="image/*"
-                  style="display: none"
-                />
-                <label for="kasus1Upload" class="upload-btn">Choose File</label>
-                <button id="uploadKasus1Button" class="action-btn">
-                  Process Image
-                </button>
-              </div>
-            </div>
-            <div class="image-container">
-              <div class="image-box">
-                <h3>Original Image</h3>
-                <div id="originalKasus1" class="image-content"></div>
-              </div>
-              <div class="image-box">
-                <h3>Processed Image</h3>
-                <div id="processedKasus1" class="image-content"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div id="inversion" class="page">
-          <div class="header">
-            <div class="title">Image Inversion</div>
-          </div>
-          <div class="main">
-            <div class="upload-area">
-              <p>Upload your image for inversion</p>
-              <div class="controls">
-                <input
-                  type="file"
-                  id="inversionUpload"
-                  accept="image/*"
-                  style="display: none"
-                />
-                <label for="inversionUpload" class="upload-btn"
-                  >Choose File</label
-                >
-                <button id="uploadInversionButton" class="action-btn">
-                  Invert
-                </button>
-              </div>
-            </div>
-            <div class="image-container">
-              <div class="image-box">
-                <h3>Original Image</h3>
-                <div id="originalInversion" class="image-content"></div>
-              </div>
-              <div class="image-box">
-                <h3>Inverted Image</h3>
-                <div id="invertedImage" class="image-content"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <!-- Miniature Effect Page -->
-        <div id="miniature-effect" class="page">
-          <div class="header">
-            <div class="title">Miniature Effect</div>
-          </div>
-          <div class="main">
-            <div class="upload-area">
-              <p>Upload your image for miniature effect</p>
-              <div class="controls">
-                <input
-                  type="file"
-                  id="miniatureEffectUpload"
-                  accept="image/*"
-                  style="display: none"
-                />
-                <label for="miniatureEffectUpload" class="upload-btn"
-                  >Choose File</label
-                >
-                <button id="uploadMiniatureEffectButton" class="action-btn">
-                  Apply Miniature Effect
-                </button>
-              </div>
-            </div>
-            <div class="image-container">
-              <div class="image-box">
-                <h3>Original Image</h3>
-                <div id="originalMiniatureEffect" class="image-content"></div>
-              </div>
-              <div class="image-box">
-                <h3>Miniature Effect Image</h3>
-                <div id="miniatureEffectImage" class="image-content"></div>
-              </div>
-            </div>
-          </div>
+
         </div>
       </div>
-    </div>
 
     <script>
       // Navigation
@@ -1010,6 +1062,61 @@
             alert("Please select an image first.");
           }
         });
+        //morphology
+        document.getElementById("uploadMorphologyButton").addEventListener("click", async (event) => {
+          event.preventDefault(); // Prevent default behavior
+      
+          const fileInput = document.getElementById("morphologyUpload");
+          const filterSelect = document.getElementById("morphologyFilter");
+          const originalContainer = document.getElementById("originalMorphology");
+          const processedContainer = document.getElementById("processedMorphology");
+      
+          // Ensure the user has selected a file
+          if (fileInput.files.length === 0) {
+              alert("Please choose a file.");
+              return;
+          }
+      
+          const file = fileInput.files[0];
+          const selectedFilter = filterSelect.value;
+      
+          // Display the original image
+          const reader = new FileReader();
+          reader.onload = function (e) {
+              originalContainer.innerHTML = `<img src="${e.target.result}" alt="Original Image">`;
+          };
+          reader.readAsDataURL(file);
+      
+          // Create FormData to send to the API
+          const formData = new FormData();
+          formData.append("image", file);  // Uploaded image
+          formData.append("filter", selectedFilter);  // Selected filter
+      
+          try {
+              // Fetch to the Flask API
+              const response = await fetch("http://127.0.0.1:5000/morphology", {
+                  method: "POST",
+                  body: formData
+              });
+      
+              // If the request is successful, capture and display the processed image
+              if (response.ok) {
+                  const blob = await response.blob();  // Get the image file from the response
+                  const url = URL.createObjectURL(blob);  // Create a temporary URL for the image
+      
+                  // Display the processed image
+                  processedContainer.innerHTML = `<img src="${url}" alt="Processed Image">`;
+              } else {
+                  // Handle case when the API returns an error
+                  const errorData = await response.json();
+                  alert(`Error: ${errorData.error}`);
+              }
+          } catch (error) {
+              // Handle network errors or other issues
+              console.error("Error:", error);
+              alert("Error occurred while processing the image.");
+          }
+      });
     </script>
   </body>
 </html>

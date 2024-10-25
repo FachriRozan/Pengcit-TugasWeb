@@ -10,6 +10,8 @@ import cv2
 import matplotlib
 import matplotlib.pyplot as plt
 from io import BytesIO
+from werkzeug.utils import secure_filename
+import os
 
 # Inisialisasi Flask app
 matplotlib.use('Agg')
@@ -21,6 +23,26 @@ face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_fronta
 
 # Load model DeepLabV3 yang sudah dilatih
 SegModel = models.segmentation.deeplabv3_resnet101(pretrained=True).eval()
+
+UPLOAD_FOLDER = 'uploads'
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+
+# Fungsi untuk mengaplikasikan filter pada gambar
+def apply_filter(image, filter_type):
+    kernel = np.ones((5,5),np.uint8)
+    if filter_type == "dilation":
+        return cv2.dilate(image, kernel, iterations = 1)
+    elif filter_type == "erotion":
+        return cv2.erode(image, kernel, iterations = 1)
+    elif filter_type == "opening":
+        return cv2.morphologyEx(image, cv2.MORPH_OPEN, kernel)
+    elif filter_type == "closing":
+        return cv2.morphologyEx(image, cv2.MORPH_CLOSE, kernel)
+    else:
+        raise ValueError("Filter tidak valid")
 
 # Image inversion function
 def invert_image(image):
@@ -474,6 +496,42 @@ def index():
         return send_file(byte_io, mimetype="image/png")
 
     return render_template("index.html")
+
+# Endpoint untuk morphology
+@app.route('/morphology', methods=['POST'])
+def apply_filter_endpoint():
+    if 'image' not in request.files or 'filter' not in request.form:
+        return jsonify({'error': 'Gambar atau filter tidak ditemukan'}), 400
+
+    # Mengambil gambar dari request
+    image_file = request.files['image']
+    filter_type = request.form['filter'].lower()
+
+    if filter_type not in ['dilation', 'erotion', 'opening', 'closing']:
+        return jsonify({'error': 'Filter tidak valid. Pilihan filter: dilasi, erosi, opening, closing'}), 400
+
+    # Menyimpan gambar sementara
+    filename = secure_filename(image_file.filename)
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    image_file.save(filepath)
+
+    # Membaca gambar dengan OpenCV
+    image = cv2.imread(filepath, cv2.IMREAD_GRAYSCALE)
+
+    if image is None:
+        return jsonify({'error': 'Gambar tidak valid'}), 400
+
+    # Menerapkan filter
+    filtered_image = apply_filter(image, filter_type)
+
+    # Menyimpan hasil ke file sementara
+    result_filename = f"filtered_{filename}"
+    result_filepath = os.path.join(app.config['UPLOAD_FOLDER'], result_filename)
+    cv2.imwrite(result_filepath, filtered_image)
+
+    # Mengembalikan gambar hasil filter ke frontend
+    return send_file(result_filepath, mimetype='image/png')
+
 
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=5000, debug=True)
