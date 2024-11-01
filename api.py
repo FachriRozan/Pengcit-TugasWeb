@@ -32,7 +32,7 @@ if not os.path.exists(UPLOAD_FOLDER):
 
 # Fungsi untuk mengaplikasikan filter pada gambar
 def apply_filter(image, filter_type):
-    kernel = np.ones((5,5),np.uint8)
+    kernel = np.ones((9,9),np.uint8)
     if filter_type == "dilation":
         return cv2.dilate(image, kernel, iterations = 1)
     elif filter_type == "erotion":
@@ -508,15 +508,11 @@ def apply_filter_endpoint():
     filter_type = request.form['filter'].lower()
 
     if filter_type not in ['dilation', 'erotion', 'opening', 'closing']:
-        return jsonify({'error': 'Filter tidak valid. Pilihan filter: dilasi, erosi, opening, closing'}), 400
+        return jsonify({'error': 'Filter tidak valid. Pilihan filter: dilation, erosion, opening, closing'}), 400
 
-    # Menyimpan gambar sementara
-    filename = secure_filename(image_file.filename)
-    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    image_file.save(filepath)
-
-    # Membaca gambar dengan OpenCV
-    image = cv2.imread(filepath, cv2.IMREAD_GRAYSCALE)
+    # Membaca gambar langsung dari stream
+    image_stream = image_file.read()
+    image = cv2.imdecode(np.frombuffer(image_stream, np.uint8), cv2.IMREAD_GRAYSCALE)
 
     if image is None:
         return jsonify({'error': 'Gambar tidak valid'}), 400
@@ -524,13 +520,12 @@ def apply_filter_endpoint():
     # Menerapkan filter
     filtered_image = apply_filter(image, filter_type)
 
-    # Menyimpan hasil ke file sementara
-    result_filename = f"filtered_{filename}"
-    result_filepath = os.path.join(app.config['UPLOAD_FOLDER'], result_filename)
-    cv2.imwrite(result_filepath, filtered_image)
+    # Mengonversi hasil filter ke dalam bentuk PNG dalam memori
+    _, buffer = cv2.imencode('.png', filtered_image)
+    image_stream = io.BytesIO(buffer)
 
-    # Mengembalikan gambar hasil filter ke frontend
-    return send_file(result_filepath, mimetype='image/png')
+    # Mengirimkan gambar hasil filter ke frontend
+    return send_file(image_stream, mimetype='image/png')
 
 
 if __name__ == '__main__':
