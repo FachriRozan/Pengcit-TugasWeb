@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, render_template
 from flask_cors import CORS
 import torch
 from torchvision import models
@@ -259,6 +259,59 @@ def apply_edge_detection(image, method):
     else:
         raise ValueError("Unsupported edge detection method")
     return edges
+
+def scale_image(image, method):
+    """Scale image using different interpolation methods"""
+    height, width = image.shape[:2]
+    
+    # More aggressive downscaling for better visibility of differences
+    small_height = int(height * 0.15)  # Downscale to 15%
+    small_width = int(width * 0.15)
+    
+    # Larger upscaling for more noticeable differences
+    target_height = height * 3  # Scale up to 3x
+    target_width = width * 3
+
+    if method == 'nearest':
+        # Nearest Neighbor - most basic interpolation
+        small_image = cv2.resize(image, (small_width, small_height), 
+                               interpolation=cv2.INTER_NEAREST)
+        result = cv2.resize(small_image, (target_width, target_height), 
+                          interpolation=cv2.INTER_NEAREST)
+        
+    elif method == 'linear':
+        # Linear interpolation (1D) - only horizontal interpolation
+        # First resize only width
+        temp1 = cv2.resize(image, (small_width, height),
+                         interpolation=cv2.INTER_LINEAR)
+        # Then resize height using nearest neighbor
+        small_image = cv2.resize(temp1, (small_width, small_height),
+                               interpolation=cv2.INTER_NEAREST)
+        
+        # Upscale using the same approach
+        temp2 = cv2.resize(small_image, (target_width, small_height),
+                          interpolation=cv2.INTER_LINEAR)
+        result = cv2.resize(temp2, (target_width, target_height),
+                          interpolation=cv2.INTER_NEAREST)
+        
+    elif method == 'bilinear':
+        # Bilinear interpolation (2D) - both directions
+        small_image = cv2.resize(image, (small_width, small_height), 
+                               interpolation=cv2.INTER_LINEAR)
+        result = cv2.resize(small_image, (target_width, target_height),
+                          interpolation=cv2.INTER_LINEAR)
+        
+    elif method == 'cubic':
+        # Bicubic interpolation - smoother results
+        small_image = cv2.resize(image, (small_width, small_height), 
+                               interpolation=cv2.INTER_CUBIC)
+        result = cv2.resize(small_image, (target_width, target_height),
+                          interpolation=cv2.INTER_CUBIC)
+    else:
+        raise ValueError("Unsupported scaling method")
+
+    return result
+
 # API for image segmentation
 @app.route('/segment', methods=['POST'])
 def segment():
@@ -527,6 +580,36 @@ def apply_filter_endpoint():
     # Mengirimkan gambar hasil filter ke frontend
     return send_file(image_stream, mimetype='image/png')
 
+@app.route('/api/scale', methods=['POST'])
+def scale():
+    if 'image' not in request.files:
+        return jsonify({'error': 'No image provided'}), 400
+        
+    file = request.files['image']
+    method = request.form.get('method', 'linear')
+    
+    # Read image
+    img = Image.open(file.stream)
+    img_np = np.array(img)
+    
+    # Convert RGB to BGR for OpenCV
+    if len(img_np.shape) == 3:
+        img_np = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
+    
+    # Scale image
+    scaled = scale_image(img_np, method)
+    
+    # Convert back to RGB
+    if len(scaled.shape) == 3:
+        scaled = cv2.cvtColor(scaled, cv2.COLOR_BGR2RGB)
+    
+    # Convert to PIL Image and save to buffer
+    result_image = Image.fromarray(scaled)
+    img_io = BytesIO()
+    result_image.save(img_io, 'PNG')
+    img_io.seek(0)
+    
+    return send_file(img_io, mimetype='image/png')
 
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=5000, debug=True)
