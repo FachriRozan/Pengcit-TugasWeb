@@ -557,35 +557,41 @@
       </div>
       <div id="scaling" class="page">
         <div class="header">
-          <h2>Image Scaling</h2>
+            <h2>Image Scaling</h2>
         </div>
         <div class="main">
-          <div class="upload-area">
-            <p>Upload your image for scaling</p>
-            <div class="controls">
-              <input type="file" id="scalingUpload" accept="image/*" style="display: none" />
-              <label for="scalingUpload" class="upload-btn">Choose File</label>
-              <select id="scalingMethod" class="filter-select">
-                  <option value="nearest">Nearest Neighbor</option>
-                  <option value="linear">Linear</option>
-                  <option value="bilinear">Bilinear</option>
-                  <option value="cubic">Cubic</option>
-              </select>
-              <button id="uploadScalingButton" class="action-btn">Scale Image</button>
-          </div>
-          </div>
-          <div class="image-container">
-            <div class="image-box">
-              <h3>Original Image</h3>
-              <div id="originalScaling" class="image-content"></div>
+            <div class="upload-area">
+                <p>Upload your image for scaling</p>
+                <div class="controls">
+                    <input type="file" id="scalingUpload" accept="image/*" style="display: none" />
+                    <label for="scalingUpload" class="upload-btn">Choose File</label>
+                    <select id="scalingMethod" class="filter-select">
+                        <option value="nearest">Nearest Neighbor</option>
+                        <option value="linear">Linear</option>
+                        <option value="bilinear">Bilinear</option>
+                        <option value="cubic">Cubic</option>
+                    </select>
+    
+                    <!-- Slider for scale percentage -->
+                    <label for="scalingPercentage">Scale Percentage (-99 to 100):</label>
+                    <input type="number" id="scalingPercentage" min="-99" max="100" value="0" />
+    
+                    <button id="uploadScalingButton" class="action-btn">Scale Image</button>
+                </div>
             </div>
-            <div class="image-box">
-              <h3>Scaled Image</h3>
-              <div id="processedScaling" class="image-content"></div>
+            <div class="image-container">
+                <div class="image-box">
+                    <h3>Original Image</h3>
+                    <div id="originalScaling" class="image-content"></div>
+                </div>
+                <div class="image-box">
+                    <h3>Scaled Image</h3>
+                    <div id="processedScaling" class="image-content"></div>
+                </div>
             </div>
-          </div>
         </div>
-      </div>
+    </div>
+    
 
     </div>
   </div>
@@ -1076,40 +1082,45 @@
       }
     });
     // Image Scaling
-    document.getElementById("uploadScalingButton").addEventListener("click", function () {
-      var fileInput = document.getElementById("scalingUpload");
-      var file = fileInput.files[0];
-      if (file) {
-        var formData = new FormData();
-        formData.append("image", file);
-        formData.append("method", document.getElementById("scalingMethod").value);
+document.getElementById("uploadScalingButton").addEventListener("click", function () {
+  var fileInput = document.getElementById("scalingUpload");
+  var file = fileInput.files[0];
+  if (file) {
+      var formData = new FormData();
+      formData.append("image", file);
+      formData.append("method", document.getElementById("scalingMethod").value);
+      
+      // Ambil nilai skala dari input
+      var scalePercent = document.getElementById("scalingPercentage").value;
+      formData.append("scale_percent", scalePercent);
 
-        // Display original image
-        var reader = new FileReader();
-        reader.onload = function (e) {
+      // Display original image
+      var reader = new FileReader();
+      reader.onload = function (e) {
           document.getElementById("originalScaling").innerHTML =
-            `<img src="${e.target.result}" alt="Original Image">`;
-        };
-        reader.readAsDataURL(file);
+              `<img src="${e.target.result}" alt="Original Image">`;
+      };
+      reader.readAsDataURL(file);
 
-        // Get scaled image
-        fetch("http://127.0.0.1:5000/api/scale", {
+      // Get scaled image
+      fetch("http://127.0.0.1:5000/api/scale", {
           method: "POST",
           body: formData,
-        })
+      })
           .then(response => response.blob())
           .then(blob => {
-            document.getElementById("processedScaling").innerHTML =
-              `<img src="${URL.createObjectURL(blob)}" alt="Scaled Image">`;
+              document.getElementById("processedScaling").innerHTML =
+                  `<img src="${URL.createObjectURL(blob)}" alt="Scaled Image">`;
           })
           .catch(error => {
-            console.error("Error scaling image:", error);
-            alert("Error scaling image. Please try again.");
+              console.error("Error scaling image:", error);
+              alert("Error scaling image. Please try again.");
           });
-      } else {
-        alert("Please select an image first.");
-      }
-    });
+  } else {
+      alert("Please select an image first.");
+  }
+});
+
   </script>
 </body>
 

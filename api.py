@@ -260,53 +260,27 @@ def apply_edge_detection(image, method):
         raise ValueError("Unsupported edge detection method")
     return edges
 
-def scale_image(image, method):
-    """Scale image using different interpolation methods"""
+def scale_image(image, method, scale_percent):
+    """Scale image using different interpolation methods and scale percent."""
     height, width = image.shape[:2]
     
-    # More aggressive downscaling for better visibility of differences
-    small_height = int(height * 0.15)  # Downscale to 15%
-    small_width = int(width * 0.15)
-    
-    # Larger upscaling for more noticeable differences
-    target_height = height * 3  # Scale up to 3x
-    target_width = width * 3
+    # Calculate new dimensions based on scale percent
+    scale_factor = 1 + (scale_percent / 100)  # Scale factor based on input percent
+    new_height = int(height * scale_factor)
+    new_width = int(width * scale_factor)
 
     if method == 'nearest':
-        # Nearest Neighbor - most basic interpolation
-        small_image = cv2.resize(image, (small_width, small_height), 
-                               interpolation=cv2.INTER_NEAREST)
-        result = cv2.resize(small_image, (target_width, target_height), 
-                          interpolation=cv2.INTER_NEAREST)
-        
+        result = cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_NEAREST)
     elif method == 'linear':
-        # Linear interpolation (1D) - only horizontal interpolation
-        # First resize only width
-        temp1 = cv2.resize(image, (small_width, height),
-                         interpolation=cv2.INTER_LINEAR)
-        # Then resize height using nearest neighbor
-        small_image = cv2.resize(temp1, (small_width, small_height),
-                               interpolation=cv2.INTER_NEAREST)
-        
-        # Upscale using the same approach
-        temp2 = cv2.resize(small_image, (target_width, small_height),
-                          interpolation=cv2.INTER_LINEAR)
-        result = cv2.resize(temp2, (target_width, target_height),
-                          interpolation=cv2.INTER_NEAREST)
-        
+        # Perform linear interpolation in one dimension first (e.g., width)
+        temp = cv2.resize(image, (new_width, height), interpolation=cv2.INTER_LINEAR)
+        # Then resize the other dimension (height) using the same interpolation
+        result = cv2.resize(temp, (new_width, new_height), interpolation=cv2.INTER_LINEAR)
     elif method == 'bilinear':
-        # Bilinear interpolation (2D) - both directions
-        small_image = cv2.resize(image, (small_width, small_height), 
-                               interpolation=cv2.INTER_LINEAR)
-        result = cv2.resize(small_image, (target_width, target_height),
-                          interpolation=cv2.INTER_LINEAR)
-        
+        # Bilinear interpolation, resizing in both directions simultaneously
+        result = cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_LINEAR)
     elif method == 'cubic':
-        # Bicubic interpolation - smoother results
-        small_image = cv2.resize(image, (small_width, small_height), 
-                               interpolation=cv2.INTER_CUBIC)
-        result = cv2.resize(small_image, (target_width, target_height),
-                          interpolation=cv2.INTER_CUBIC)
+        result = cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_CUBIC)
     else:
         raise ValueError("Unsupported scaling method")
 
@@ -588,7 +562,17 @@ def scale():
     file = request.files['image']
     method = request.form.get('method', 'linear')
     
-    # Read image
+    # Get scale percent with a default value of 0
+    try:
+        scale_percent = float(request.form.get('scale_percent', '0'))
+    except ValueError:
+        return jsonify({'error': 'Scale percent must be a number'}), 400
+
+    # Validate scale percent range
+    if scale_percent < -100 or scale_percent > 100:
+        return jsonify({'error': 'Scale percent must be between -100 and 100'}), 400
+
+    # Read the image
     img = Image.open(file.stream)
     img_np = np.array(img)
     
@@ -596,8 +580,8 @@ def scale():
     if len(img_np.shape) == 3:
         img_np = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
     
-    # Scale image
-    scaled = scale_image(img_np, method)
+    # Scale image using the specified method and scale percent
+    scaled = scale_image(img_np, method, scale_percent)
     
     # Convert back to RGB
     if len(scaled.shape) == 3:
