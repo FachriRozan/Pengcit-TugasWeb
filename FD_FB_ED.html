@@ -259,6 +259,9 @@
         <li>
           <a href="#" class="nav-link" data-page="scaling">Image Scaling</a>
         </li>
+        <li><a href="#" class="nav-link" data-page="restoration">Image Restoration</a></li>
+        <li><a href="#" class="nav-link" data-page="shape">Image Shape</a></li>
+        <li><a href="#" class="nav-link" data-page="compression">Image Compression</a></li>
       </ul>
     </nav>
     <div class="content">
@@ -591,7 +594,95 @@
             </div>
         </div>
     </div>
-    
+    <!-- Image Restoration Page -->
+    <div id="restoration" class="page">
+      <div class="header">
+        <div class="title">Image Restoration</div>
+      </div>
+      <div class="main">
+        <div class="upload-area">
+          <h3>Noise Reduction</h3>
+          <p>Upload your image and select a noise reduction method</p>
+          <div class="upload-controls">
+            <div class="file-input-wrapper">
+              <input type="file" id="restorationUpload" accept="image/*" style="display: none" />
+              <label for="restorationUpload" class="upload-btn">Choose File</label>
+            </div>
+          
+            <select id="noiseMethode" class="action-btn">
+              <option value="saltpepper">Salt & Pepper</option>
+              <option value="gaussian">Gaussian</option>
+              <option value="speckle">Speckle</option>
+              <option value="periodic">Periodic</option>
+            </select>
+          
+            <select id="restorationMethod" class="action-btn">
+              <option value="lowpass">Lowpass Filter</option>
+              <option value="median">Median Filter</option>
+              <option value="rankorder">Rank-Order Filter</option>
+              <option value="outlier">Outlier Filter</option>
+            </select>
+          
+
+            <button id="addNoiseButton" class="action-btn">Add Noise</button>
+            <button id="uploadRestorationButton" class="action-btn">Restore Image</button>
+          </div>
+          
+        </div>
+        <div class="image-container">
+          <div class="image-box">
+            <h3>Original Image</h3>
+            <div id="originalRestoration" class="image-content"></div>
+          </div>
+          <div class="image-box">
+            <h3>Noise Image</h3>
+            <div id="noiseImage" class="image-content"></div>
+          </div>
+          <div class="image-box">
+            <h3>Restored Image</h3>
+            <div id="restoredImage" class="image-content"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Image Shape Page -->
+    <div id="shape" class="page">
+      <div class="header">
+        <div class="title">Image Shape Analysis</div>
+      </div>
+      <div class="main">
+        <div class="upload-area">
+          <h3>Chain Code Generation</h3>
+          <p>Upload a binary image to generate chain code</p>
+          <div class="upload-controls">
+            <div class="file-input-wrapper">
+              <input type="file" id="shapeUpload" accept="image/*" style="display: none" />
+              <label for="shapeUpload" class="upload-btn">Choose File</label>
+            </div>
+            <button id="uploadShapeButton" class="action-btn">
+              Generate Chain Code
+            </button>
+          </div>
+        </div>
+        <div class="image-container">
+          <div class="image-box">
+            <h3>Original Image</h3>
+            <div id="originalShape" class="image-content"></div>
+          </div>
+          <div class="image-box">
+            <h3>Processed Image</h3>
+            <div id="processedShape" class="image-content"></div>
+          </div>
+          <div class="image-box">
+            <h3>Chain Code</h3>
+            <div id="chainCode" class="image-content">
+              <pre id="chainCodeText"></pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
     </div>
   </div>
@@ -1120,6 +1211,119 @@ document.getElementById("uploadScalingButton").addEventListener("click", functio
       alert("Please select an image first.");
   }
 });
+
+
+// Add Noise
+document.getElementById("addNoiseButton").addEventListener("click", function () {
+  const file = document.getElementById("restorationUpload").files[0];
+  const noiseMethod = document.getElementById("noiseMethode").value;
+
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      document.getElementById("originalRestoration").innerHTML =
+        `<img src="${e.target.result}" alt="Original Image">`;
+    };
+    reader.readAsDataURL(file);
+
+    const formData = new FormData();
+    formData.append("image", file);
+    formData.append("noise_method", noiseMethod);
+
+    fetch("http://127.0.0.1:5000/api/add_noise", {
+      method: "POST",
+      body: formData
+    })
+      .then(response => response.blob())
+      .then(blob => {
+        document.getElementById("noiseImage").innerHTML =
+          `<img src="${URL.createObjectURL(blob)}" alt="Noise Image">`;
+      })
+      .catch(error => {
+        console.error("Error:", error);
+        alert("Error adding noise: " + error.message);
+      });
+  }
+});
+
+// Restore Image
+document.getElementById("uploadRestorationButton").addEventListener("click", function () {
+  const noiseImage = document.getElementById("noiseImage").querySelector("img").src;
+  const restorationMethod = document.getElementById("restorationMethod").value;
+
+  fetch(noiseImage)
+    .then(res => res.blob())
+    .then(blob => {
+      const formData = new FormData();
+      formData.append("image", blob);
+      formData.append("method", restorationMethod);
+
+      return fetch("http://127.0.0.1:5000/api/restore", {
+        method: "POST",
+        body: formData
+      });
+    })
+    .then(response => response.blob())
+    .then(blob => {
+      document.getElementById("restoredImage").innerHTML =
+        `<img src="${URL.createObjectURL(blob)}" alt="Restored Image">`;
+    })
+    .catch(error => {
+      console.error("Error:", error);
+      alert("Error restoring image: " + error.message);
+    });
+});
+
+
+// Image Shape Analysis
+document.getElementById("uploadShapeButton").addEventListener("click", function() {
+  const file = document.getElementById("shapeUpload").files[0];
+
+  if (file) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+          document.getElementById("originalShape").innerHTML = 
+              `<img src="${e.target.result}" alt="Original Image" />`;
+      };
+      reader.readAsDataURL(file);
+
+      const formData = new FormData();
+      formData.append("image", file);
+
+      fetch("http://127.0.0.1:5000/api/shape", {
+          method: "POST",
+          body: formData
+      })
+      .then(response => response.json())
+      .then(data => {
+          if (data.status === "success") {
+              // Display processed image
+              document.getElementById("processedShape").innerHTML = 
+                  `<img src="data:image/png;base64,${data.visualization}" alt="Processed Image" />`;
+              
+              // Display chain code as text
+              let chainCodeText = `Total Shapes Detected: ${data.total_shapes}\n\n`;
+              data.shapes.forEach(shape => {
+                  chainCodeText += `Shape ${shape.shape_id}:\n`;
+                  chainCodeText += `  Starting Point: (${shape.start_point[0]}, ${shape.start_point[1]})\n`;
+                  chainCodeText += `  Chain Length: ${shape.length}\n`;
+                  chainCodeText += `  Chain Code: ${shape.chain_code.join(", ")}\n\n`;
+              });
+              document.getElementById("chainCodeText").textContent = chainCodeText;
+          } else {
+              alert(data.message || "Error processing image");
+          }
+      })
+      .catch(error => {
+          console.error("Error:", error);
+          alert("Error generating chain code: " + error.message);
+      });
+  } else {
+      alert("Please upload an image.");
+  }
+});
+
+
 
   </script>
 </body>

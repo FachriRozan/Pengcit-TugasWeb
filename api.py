@@ -12,6 +12,12 @@ import matplotlib.pyplot as plt
 from io import BytesIO
 from werkzeug.utils import secure_filename
 import os
+import logging
+import base64
+from skimage.util import random_noise
+from skimage import util as noise
+from scipy import ndimage
+
 
 # Inisialisasi Flask app
 matplotlib.use('Agg')
@@ -259,6 +265,37 @@ def apply_edge_detection(image, method):
     else:
         raise ValueError("Unsupported edge detection method")
     return edges
+import random
+import numpy as np
+
+def add_salt_pepper_noise(image):
+    row, col = image.shape[:2]
+    number_of_pixels = 500  # Fixed amount of noise
+    for _ in range(number_of_pixels):
+        y_coord = random.randint(0, row - 1)
+        x_coord = random.randint(0, col - 1)
+        image[y_coord][x_coord] = 255 if random.random() > 0.5 else 0
+    return image
+
+def add_gaussian_noise(image):
+    noise = np.random.normal(0, 25, image.shape).astype(np.uint8)
+    noisy_image = cv2.add(image, noise)
+    return noisy_image
+
+def add_speckle_noise(image):
+    noise = np.random.randn(*image.shape) * 0.1
+    noisy_image = image + image * noise
+    return np.clip(noisy_image, 0, 255).astype(np.uint8)
+
+def add_periodic_noise(image):
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    rows, cols = image.shape[:2]
+    Y = np.tile(np.arange(rows), (cols, 1)).T
+    sinusoidal_noise = np.sin(2 * np.pi * Y / 30) * 30
+    noisy_image = np.clip(image.astype(np.float32) + sinusoidal_noise, 0, 255).astype(np.uint8)
+    return noisy_image
+
+
 
 def scale_image(image, method, scale_percent):
     """Scale image using different interpolation methods and scale percent."""
@@ -285,6 +322,100 @@ def scale_image(image, method, scale_percent):
         raise ValueError("Unsupported scaling method")
 
     return result
+
+def noise_reduction(image, method='lowpass'):
+    try:
+        if method == 'lowpass':
+            result = ndimage.uniform_filter(image, 5)
+        elif method == 'median':
+            return cv2.medianBlur(image, 5)
+        elif method == 'rankorder':
+            cross=np.array([[0,1,0],[1,1,1],[0,1,0]])
+            result = ndimage.median_filter(image, footprint=cross)
+            return result
+        elif method == 'outlier':
+                # Kernel rata-rata (average filter) berbentuk cross
+                kernel = np.array([[0, 1, 0],
+                       [1, 1, 1],
+                       [0, 1, 0]]) / 5.0  # Normalisasi agar jumlah kernel menjadi 1
+
+                # Convolve gambar dengan kernel rata-rata
+                image_filtered = ndimage.convolve(image.astype(np.float32), kernel)
+
+                # Threshold untuk mendeteksi outlier (bisa disesuaikan)
+                threshold = 30.0
+
+                # Mask untuk mendeteksi piksel yang merupakan outlier
+                outlier_mask = np.abs(image - image_filtered) > threshold
+
+                # Mengganti piksel outlier dengan hasil filtering
+                result = np.where(outlier_mask, image_filtered, image)
+
+                return np.clip(result, 0, 255).astype(np.uint8)
+        else:
+            raise ValueError("Invalid noise reduction method")
+    except Exception as e:
+        logging.error(f"Noise reduction error: {e}")
+        return image
+
+
+
+def chain_code(image):
+        try:
+            # Convert image to grayscale
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            
+            # Apply binary threshold
+            _, binary = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY)
+            
+            # Find contours
+            contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            
+            # Initialize result dictionary
+            result = {
+                'total_contours': len(contours),
+                'chains': []
+            }
+            
+            # Process each contour
+            for idx, contour in enumerate(contours):
+                chain = []
+                # Get chain code for the contour
+                for i in range(1, len(contour)):
+                    prev = contour[i-1][0]
+                    curr = contour[i][0]
+                    dx = curr[0] - prev[0]
+                    dy = curr[1] - prev[1]
+                    
+                    # Convert direction to chain code (0-7)
+                    if dx == 1 and dy == 0: direction = 0
+                    elif dx == 1 and dy == -1: direction = 1
+                    elif dx == 0 and dy == -1: direction = 2
+                    elif dx == -1 and dy == -1: direction = 3
+                    elif dx == -1 and dy == 0: direction = 4
+                    elif dx == -1 and dy == 1: direction = 5
+                    elif dx == 0 and dy == 1: direction = 6
+                    elif dx == 1 and dy == 1: direction = 7
+                    
+                    chain.append(direction)
+                
+                # Add chain code information for this contour
+                contour_info = {
+                    'contour_id': idx + 1,
+                    'chain_code': chain,
+                    'length': len(chain),
+                    'start_point': tuple(contour[0][0].tolist())  # Starting coordinate
+                }
+                result['chains'].append(contour_info)
+            
+            return result
+        except Exception as e:
+            logging.error(f"Chain code error: {e}")
+            return {
+                'total_contours': 0,
+                'chains': [],
+                'error': str(e)
+            }
 
 # API for image segmentation
 @app.route('/segment', methods=['POST'])
@@ -594,6 +725,179 @@ def scale():
     img_io.seek(0)
     
     return send_file(img_io, mimetype='image/png')
+
+@app.route('/api/restore', methods=['POST'])
+def restore_image():
+    """Restore image by reducing noise"""
+    try:
+        if 'image' not in request.files:
+            return jsonify({"error": "No image uploaded"}), 400
+
+        file = request.files['image']
+        method = request.form.get('method', 'lowpass')
+        image = cv2.imdecode(np.frombuffer(file.read(), np.uint8), cv2.IMREAD_COLOR)
+
+        if method == 'lowpass':
+            restored_image = ndimage.uniform_filter(image, 5)
+        elif method == 'median':
+            restored_image = cv2.medianBlur(image, 5)
+        elif method == 'rankorder':
+            gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)  # Konversi ke grayscale
+            cross = np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]])  # Footprint berbentuk cross
+            restored_image = ndimage.median_filter(gray_image, footprint=cross)
+            restored_image = cv2.cvtColor(restored_image, cv2.COLOR_GRAY2BGR)  # Kembalikan ke format 3 channel
+        elif method == 'outlier':
+            # Kernel rata-rata (average filter) berbentuk cross
+            kernel = np.array([[0, 1, 0],
+                       [1, 1, 1],
+                       [0, 1, 0]]) / 5.0  # Normalisasi agar jumlah kernel menjadi 1
+
+            # Pisahkan gambar menjadi tiga channel (BGR)
+            channels = cv2.split(image)
+
+            # Proses setiap channel secara terpisah
+            filtered_channels = []
+            for channel in channels:
+                # Convolve channel dengan kernel rata-rata
+                filtered_channel = ndimage.convolve(channel.astype(np.float32), kernel)
+
+                # Threshold untuk mendeteksi outlier (bisa disesuaikan)
+                threshold = 30.0
+
+                # Mask untuk mendeteksi piksel yang merupakan outlier
+                outlier_mask = np.abs(channel - filtered_channel) > threshold
+
+                # Mengganti piksel outlier dengan hasil filtering
+                result = np.where(outlier_mask, filtered_channel, channel)
+                filtered_channels.append(np.clip(result, 0, 255).astype(np.uint8))
+
+            # Gabungkan kembali channel yang sudah diproses
+            restored_image = cv2.merge(filtered_channels)
+
+        else:
+            return jsonify({"error": "Invalid restoration method"}), 400
+
+        restored_pil = Image.fromarray(cv2.cvtColor(restored_image, cv2.COLOR_BGR2RGB))
+        img_io = BytesIO()
+        restored_pil.save(img_io, 'PNG')
+        img_io.seek(0)
+
+        return send_file(img_io, mimetype='image/png')
+
+    except Exception as e:
+        logging.error(f"Image restoration error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+
+@app.route('/api/add_noise', methods=['POST'])
+def add_noise():
+    try:
+        if 'image' not in request.files:
+            return jsonify({"error": "No image uploaded"}), 400
+
+        file = request.files['image']
+        noise_method = request.form.get('noise_method', 'saltpepper')
+        image = cv2.imdecode(np.frombuffer(file.read(), np.uint8), cv2.IMREAD_COLOR)
+
+        if noise_method == 'saltpepper':
+            noise_img = add_salt_pepper_noise(image)
+        elif noise_method == 'gaussian':
+            noise_img = add_gaussian_noise(image)
+        elif noise_method == 'speckle':
+            noise_img = add_speckle_noise(image)
+        elif noise_method == 'periodic':
+            noise_img = add_periodic_noise(image)
+        else:
+            return jsonify({"error": "Invalid noise method"}), 400
+
+        img_io = BytesIO()
+        Image.fromarray(cv2.cvtColor(noise_img, cv2.COLOR_BGR2RGB)).save(img_io, 'PNG')
+        img_io.seek(0)
+        return send_file(img_io, mimetype='image/png')
+
+    except Exception as e:
+        logging.error(f"Noise addition error: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/shape', methods=['POST'])
+def extract_shape():
+    """Extract chain code from image contours"""
+    try:
+        if 'image' not in request.files:
+            return jsonify({"error": "No image uploaded"}), 400
+        
+        file = request.files['image']
+        image = cv2.imdecode(np.frombuffer(file.read(), np.uint8), cv2.IMREAD_COLOR)
+        
+        # Convert image to grayscale and get binary image
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        _, binary = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY)
+        
+        # Find contours
+        contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        output_image = image.copy()
+        cv2.drawContours(output_image, contours, -1, (0, 255, 0), 2)
+        
+        # Extract chain codes
+        shapes = []
+        for idx, contour in enumerate(contours):
+            chain = []
+            for i in range(1, len(contour)):
+                prev = contour[i - 1][0]
+                curr = contour[i][0]
+                dx = int(curr[0] - prev[0])  # Convert to Python int
+                dy = int(curr[1] - prev[1])  # Convert to Python int
+                
+                # Chain code directions
+                if dx == 1 and dy == 0: direction = 0
+                elif dx == 1 and dy == -1: direction = 1
+                elif dx == 0 and dy == -1: direction = 2
+                elif dx == -1 and dy == -1: direction = 3
+                elif dx == -1 and dy == 0: direction = 4
+                elif dx == -1 and dy == 1: direction = 5
+                elif dx == 0 and dy == 1: direction = 6
+                elif dx == 1 and dy == 1: direction = 7
+                else: direction = -1  # Invalid movement
+                
+                chain.append(direction)
+            
+            shapes.append({
+                "shape_id": idx + 1,
+                "chain_code": chain,
+                "length": len(chain),
+                "start_point": [int(contour[0][0][0]), int(contour[0][0][1])]  # Convert to Python list
+            })
+        
+        # Convert output image to base64
+        _, buffer = cv2.imencode('.png', output_image)
+        image_base64 = base64.b64encode(buffer).decode('utf-8')
+        
+        result = {
+            "status": "success",
+            "total_shapes": len(contours),
+            "shapes": shapes,
+            "visualization": image_base64
+        }
+        
+        return jsonify(result), 200
+    
+    except Exception as e:
+        logging.error(f"Shape extraction error: {e}")
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
+        
+@app.errorhandler(Exception)
+def handle_error(error):
+    response = {
+        "error": str(error),
+        "message": "An unexpected error occurred"
+    }
+    return jsonify(response), 500
 
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=5000, debug=True)
