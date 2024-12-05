@@ -17,6 +17,29 @@ import base64
 from skimage.util import random_noise
 from skimage import util as noise
 from scipy import ndimage
+import huffman
+import sys
+import ailia
+# import original modules
+sys.path.append('util/')
+from arg_utils import get_base_parser, update_parser, get_savepath  # noqa: E402
+from model_utils import check_and_download_models  # noqa: E402
+from detector_utils import load_image  # noqa: E402
+import webcamera_utils  # noqa: E402
+
+# logger
+from logging import getLogger  # noqa: E402
+
+logger = getLogger(__name__)
+
+# ======================
+# Parameters
+# ======================
+WEIGHT_MOBILENETV2_PATH = 'mobilenetv2.onnx'
+MODEL_MOBILENETV2_PATH = 'mobilenetv2.onnx.prototxt'
+WEIGHT_RESNET50_PATH = 'resnet50.onnx'
+MODEL_RESNET50_PATH = 'resnet50.onnx.prototxt'
+REMOTE_PATH = 'https://storage.googleapis.com/ailia-models/background_matting_v2/'
 
 
 # Inisialisasi Flask app
@@ -36,6 +59,61 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
+# Load model
+dic_model = {
+    'mobilenetv2': (WEIGHT_MOBILENETV2_PATH, MODEL_MOBILENETV2_PATH),
+    'resnet50': (WEIGHT_RESNET50_PATH, MODEL_RESNET50_PATH),
+}
+
+# Load model once when the server starts
+model_type = 'mobilenetv2'  # Default model type
+weight_path, model_path = dic_model[model_type]
+check_and_download_models(weight_path, model_path, REMOTE_PATH)
+net = ailia.Net(model_path, weight_path)
+
+# ======================
+# Main functions
+# ======================
+
+def bgr_image_from_file(file):
+    img_bytes = file.read()
+    img_array = np.frombuffer(img_bytes, np.uint8)
+    img = cv2.imdecode(img_array, cv2.IMREAD_UNCHANGED)
+
+    if img is None:
+        raise ValueError("Invalid background image format")
+
+    img = cv2.cvtColor(img, cv2.COLOR_BGRA2RGB)
+    return preprocess(img)
+
+def preprocess(img, shape=None):
+    if shape:
+        h, w = shape
+        img = cv2.resize(img, (w, h))
+    img = img / 255
+    img = img.transpose(2, 0, 1)  # HWC -> CHW
+    img = np.expand_dims(img, axis=0)
+    img = img.astype(np.float32)
+    return img
+
+def post_process(*args, a=False):
+    pha, fgr, _, _, _, _ = args
+    if a:
+        com = np.concatenate([fgr * np.not_equal(pha, 0), pha], axis=1)
+    else:
+        bg_clr = np.array([120 / 255, 255 / 255, 155 / 255]).reshape((1, 3, 1, 1))
+        com = pha * fgr + (1 - pha) * bg_clr
+    img = com.transpose((0, 2, 3, 1))[0] * 255
+    img = img.astype(np.uint8)
+    return img
+
+def predict(net, img, bgr_img):
+    _, _, h, w = bgr_img.shape
+    im_h, im_w = img.shape[:2]
+    shape = (h, w) if im_h != h or im_w != w else None
+    img = preprocess(img, shape)
+    output = net.predict([img, bgr_img])
+    return output
 # Fungsi untuk mengaplikasikan filter pada gambar
 def apply_filter(image, filter_type):
     kernel = np.ones((9,9),np.uint8)
@@ -750,7 +828,7 @@ def restore_image():
             # Kernel rata-rata (average filter) berbentuk cross
             kernel = np.array([[0, 1, 0],
                        [1, 1, 1],
-                       [0, 1, 0]]) / 5.0  # Normalisasi agar jumlah kernel menjadi 1
+                       [0, 1, 0]]) / 5.0  
 
             # Pisahkan gambar menjadi tiga channel (BGR)
             channels = cv2.split(image)
@@ -889,8 +967,99 @@ def extract_shape():
             "status": "error",
             "message": str(e)
         }), 500
-
         
+@app.route('/api/compress', methods=['POST'])
+def compress_image():
+    """Compress image using Huffman coding"""
+    try:
+        if 'image' not in request.files:
+            return jsonify({"error": "No image uploaded"}), 400
+        
+        file = request.files['image']
+        image = cv2.imdecode(np.frombuffer(file.read(), np.uint8), cv2.IMREAD_GRAYSCALE)
+        
+        # Generate visualization of pixel frequency
+        hist = cv2.calcHist([image], [0], None, [256], [0, 256])
+        plt.figure()
+        plt.title("Pixel Frequency Distribution")
+        plt.plot(hist)
+        plt.xlabel("Pixel Value")
+        plt.ylabel("Frequency")
+        
+        # Save plot to base64
+        buf = BytesIO()
+        plt.savefig(buf, format='png')
+        buf.seek(0)
+        hist_base64 = base64.b64encode(buf.getvalue()).decode('utf-8')
+        plt.close()
+        
+        # Perform Huffman compression
+        flat_image = image.flatten()
+        freq = {}
+        for pixel in flat_image:
+            freq[pixel] = freq.get(pixel, 0) + 1
+        
+        huffman_tree = huffman.codebook(freq.items())
+        compressed_data = ''.join(huffman_tree[pixel] for pixel in flat_image)
+        
+        # Create compressed visualization
+        compressed_img = cv2.resize(image, (0,0), fx=0.5, fy=0.5)  # Compress size by 50%
+        _, compressed_buf = cv2.imencode('.png', compressed_img)
+        compressed_base64 = base64.b64encode(compressed_buf).decode('utf-8')
+        
+        # Calculate compression statistics
+        original_size = len(flat_image) * 8  # 8 bits per pixel
+        compressed_size = len(compressed_data)
+        compression_ratio = compressed_size / original_size
+        
+        result = {
+            "status": "success",
+            "compression_details": {
+                "original_size": original_size,
+                "compressed_size": compressed_size,
+                "compression_ratio": compression_ratio,
+                "pixel_frequencies": hist_base64,
+                "compressed_image": compressed_base64
+            }
+        }
+        
+        return jsonify(result), 200
+        
+    except Exception as e:
+        logging.error(f"Image compression error: {e}")
+        return jsonify({"error": str(e)}), 500
+        
+@app.route('/api/bgr', methods=['POST'])
+def process_image():
+    if 'image' not in request.files or 'background' not in request.files:
+        return jsonify({'error': 'No image or background file provided'}), 400
+
+    image_file = request.files['image']
+    background_file = request.files['background']
+
+    # Load the main image
+    img_bytes = image_file.read()
+    img_array = np.frombuffer(img_bytes, np.uint8)
+    img = cv2.imdecode(img_array, cv2.IMREAD_UNCHANGED)
+
+    if img is None:
+        return jsonify({'error': 'Invalid image format'}), 400
+
+    img = cv2.cvtColor(img, cv2.COLOR_BGRA2RGB)
+
+    # Load the background image
+    bgr_img = bgr_image_from_file(background_file)
+
+    # Perform prediction
+    output = predict(net, img, bgr_img)
+    res_img = post_process(*output, a=True)
+    res_img = cv2.cvtColor(res_img, cv2.COLOR_RGBA2BGRA)
+
+    output_path = 'output.png'
+    cv2.imwrite(output_path, res_img)
+
+    return send_file(output_path, mimetype='image/png')
+
 @app.errorhandler(Exception)
 def handle_error(error):
     response = {

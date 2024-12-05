@@ -262,6 +262,7 @@
         <li><a href="#" class="nav-link" data-page="restoration">Image Restoration</a></li>
         <li><a href="#" class="nav-link" data-page="shape">Image Shape</a></li>
         <li><a href="#" class="nav-link" data-page="compression">Image Compression</a></li>
+        <li><a href="#" class="nav-link" data-page="remove-bg">Removal Background</a></li>
       </ul>
     </nav>
     <div class="content">
@@ -683,6 +684,83 @@
         </div>
       </div>
     </div>
+<!-- Image Compression Page -->
+<div id="compression" class="page">
+  <div class="header">
+    <div class="title">Image Compression</div>
+  </div>
+  <div class="main">
+    <div class="upload-area">
+      <h3>Huffman Coding</h3>
+      <p>Upload an image to compress using Huffman coding</p>
+      <div class="upload-controls">
+        <div class="file-input-wrapper">
+          <input type="file" id="compressionUpload" accept="image/*" style="display: none" />
+          <label for="compressionUpload" class="upload-btn">Choose File</label>
+        </div>
+        <button id="uploadCompressionButton" class="action-btn">
+          Compress Image
+        </button>
+      </div>
+    </div>
+    <div class="image-container">
+      <div class="image-box">
+        <h3>Original Image</h3>
+        <div id="originalCompression" class="image-content"></div>
+      </div>
+      <div class="image-box">
+        <h3>Compressed Image</h3>
+        <div id="processedCompression" class="image-content"></div>
+      </div>
+      <div class="image-box">
+        <h3>Compression Results</h3>
+        <div id="compressionResults" class="image-content">
+          <div id="compressionStats"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="remove-bg" class="page">
+  <div class="header">
+    <div class="title">Background Removal</div>
+  </div>
+  <div class="main">
+    <div class="upload-area">
+      <h3>Upload Files</h3>
+      <p>Upload an image and a background for processing</p>
+      <div class="upload-controls">
+        <div class="file-input-wrapper">
+          <input type="file" id="imageUpload" accept="image/*" style="display: none" />
+          <label for="imageUpload" class="upload-btn">Choose Image</label>
+        </div>
+        <div class="file-input-wrapper">
+          <input type="file" id="backgroundUpload" accept="image/*" style="display: none" />
+          <label for="backgroundUpload" class="upload-btn">Choose Background</label>
+        </div>
+        <button id="uploadRemovalButton" class="action-btn">
+          Process Image
+        </button>
+      </div>
+    </div>
+    <div class="image-container">
+      <div class="image-box">
+        <h3>Original Image</h3>
+        <div id="originalImage" class="image-content"></div>
+      </div>
+      <div class="image-box">
+        <h3>Background Image</h3>
+        <div id="backgroundImage" class="image-content"></div>
+      </div>
+      <div class="image-box">
+        <h3>Processed Image</h3>
+        <div id="processedImage" class="image-content"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 
     </div>
   </div>
@@ -1322,8 +1400,124 @@ document.getElementById("uploadShapeButton").addEventListener("click", function(
       alert("Please upload an image.");
   }
 });
+ // Image Compression
 
+document.getElementById("uploadCompressionButton").addEventListener("click", function () {
+  const fileInput = document.getElementById("compressionUpload");
+  const file = fileInput.files[0];
 
+  if (file) {
+      const reader = new FileReader();
+
+      reader.onload = function (e) {
+          const originalImageContainer = document.getElementById("originalCompression");
+          originalImageContainer.innerHTML = ""; // Clear existing content
+
+          const img = document.createElement("img");
+          img.src = e.target.result;
+          img.alt = "Original Image";
+
+          originalImageContainer.appendChild(img);
+      };
+
+      reader.readAsDataURL(file);
+
+      const formData = new FormData();
+      formData.append("image", file);
+
+      fetch("http://127.0.0.1:5000/api/compress", {
+          method: "POST",
+          body: formData
+      })
+      .then(response => {
+          if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          return response.json();
+      })
+      .then(data => {
+          if (data.status === "success") {
+              const processedImageContainer = document.getElementById("processedCompression");
+              processedImageContainer.innerHTML = ""; // Clear existing content
+
+              const img = document.createElement("img");
+              img.src = `data:image/png;base64,${data.compression_details.compressed_image}`;
+              img.alt = "Compressed Image";
+
+              processedImageContainer.appendChild(img);
+
+              // Display statistics
+              const statsContainer = document.getElementById("compressionStats");
+              statsContainer.innerHTML = `
+                  <h4>Compression Statistics:</h4>
+                  <p>Original Size: ${data.compression_details.original_size} bits</p>
+                  <p>Compressed Size: ${data.compression_details.compressed_size} bits</p>
+                  <p>Compression Ratio: ${(data.compression_details.compression_ratio * 100).toFixed(2)}%</p>
+              `;
+
+              // Display pixel frequency plot
+              const frequencyPlotContainer = document.createElement("div");
+              frequencyPlotContainer.className = "frequency-plot";
+              frequencyPlotContainer.innerHTML = `
+                  <h4>Pixel Frequency Distribution:</h4>
+                  <img src="data:image/png;base64,${data.compression_details.pixel_frequencies}" alt="Pixel Frequency Distribution">
+              `;
+
+              statsContainer.appendChild(frequencyPlotContainer);
+          } else {
+              throw new Error("Compression failed. Please try again.");
+          }
+      })
+      .catch(error => {
+          console.error("Error:", error);
+          alert("Error compressing image: " + error.message);
+      });
+  } else {
+      alert("Please upload an image file.");
+  }
+});
+
+document.getElementById('uploadRemovalButton').addEventListener('click', async () => {
+  const imageFile = document.getElementById('imageUpload').files[0];
+  const backgroundFile = document.getElementById('backgroundUpload').files[0];
+
+  if (!imageFile || !backgroundFile) {
+    alert("Please upload both an image and a background.");
+    return;
+  }
+
+  // Display original and background images
+  const originalImageDiv = document.getElementById('originalImage');
+  const backgroundImageDiv = document.getElementById('backgroundImage');
+  originalImageDiv.innerHTML = `<img src="${URL.createObjectURL(imageFile)}" alt="Original Image" />`;
+  backgroundImageDiv.innerHTML = `<img src="${URL.createObjectURL(backgroundFile)}" alt="Background Image" />`;
+
+  // Prepare form data
+  const formData = new FormData();
+  formData.append('image', imageFile);
+  formData.append('background', backgroundFile);
+
+  // Send request to server
+  try {
+    const response = await fetch('http://127.0.0.1:5000/api/bgr', {
+      method: 'POST',
+      body: formData
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to process the image");
+    }
+
+    // Display processed image
+    const processedImageDiv = document.getElementById('processedImage');
+    const blob = await response.blob();
+    const processedURL = URL.createObjectURL(blob);
+    processedImageDiv.innerHTML = `<img src="${processedURL}" alt="Processed Image" />`;
+
+  } catch (error) {
+    alert("Error: " + error.message);
+  }
+});
 
   </script>
 </body>
